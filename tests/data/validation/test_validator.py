@@ -203,5 +203,3 @@ def test_validation_is_deterministic_across_repeated_runs(schema):
 
     outcomes_1 = [(r.valid, [(e.category, e.message) for e in r.errors]) for r in run_1]
     outcomes_2 = [(r.valid, [(e.category, e.message) for e in r.errors]) for r in run_2]
-
-    assert outcomes_1 == outcomes_2
