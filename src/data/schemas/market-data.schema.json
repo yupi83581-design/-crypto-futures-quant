@@ -2,38 +2,39 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://internal/crypto-futures-quant/schemas/market-data.schema.json",
   "title": "Crypto Futures Quant - Market Data Record",
-  "description": "Exchange-agnostic contract for a single market-data record. event_time <= available_time <= ingestion_time must hold for every record; available_time is data-type specific and must never be assumed equal to event_time. This schema intentionally excludes prediction, probability, trading signal, position sizing, leverage, stop-loss/take-profit logic, and order 
-    "type": "object",
-"properties": {
-  "exchange": {
-    "type": "string"
+  "description": "Exchange-agnostic contract for a single market-data record. event_time <= available_time <= ingestion_time must hold for every record; available_time is data-type specific and must never be assumed equal to event_time. This schema intentionally excludes prediction, probability, trading signal, position sizing, leverage, stop-loss/take-profit logic, and order execution.",
+  "type": "object",
+  "properties": {
+    "exchange": {
+      "type": "string"
+    },
+    "market_type": {
+      "type": "string"
+    },
+    "symbol": {
+      "type": "string"
+    },
+    "data_type": {
+      "type": "string"
+    },
+    "event_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "available_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ingestion_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "schema_version": {
+      "type": "string"
+    }
   },
-  "market_type": {
-    "type": "string"
-  },
-  "symbol": {
-    "type": "string"
-  },
-  "data_type": {
-    "type": "string"
-  },
-  "event_time": {
-    "type": "string",
-    "format": "date-time"
-  },
-  "available_time": {
-    "type": "string",
-    "format": "date-time"
-  },
-  "ingestion_time": {
-    "type": "string",
-    "format": "date-time"
-  },
-  "schema_version": {
-    "type": "string"
-  }
-},
-"oneOf": [
+  "oneOf": [
+    {
       "type": "object",
       "additionalProperties": false,
       "required": [
