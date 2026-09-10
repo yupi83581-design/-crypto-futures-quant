@@ -1,22 +1,14 @@
 """
-src/data/validation/validator.py
-
 Data Validation - Phase 1, Crypto Futures Quant Engine.
 
 Validates incoming market-data records against the locked data contract
-in src/data/schemas/market-data.schema.json before they enter the
-collector's persisted dataset.
+before they enter the collector's persisted dataset.
 
-Design constraints (Phase 0 Replay-First / Multi-Pair-Ready principle):
-- Every function is pure: (record, config/state) -> result.
-- No hidden reliance on wall-clock time.
-- No global mutable state used for decisions.
-- Sequence/duplicate tracking state is passed in and returned explicitly.
-
-Out of scope here:
-- Gap detection / REST backfill / reconciliation
-- Collector implementation
-- Automated test suite
+Design:
+- Deterministic validation.
+- No wall-clock dependency.
+- No global mutable decision state.
+- Sequence state is explicit and caller-owned.
 """
 
 from __future__ import annotations
@@ -38,7 +30,16 @@ SCHEMA_PATH = (
 )
 
 
+class ValidationStatus(str, Enum):
+    """Overall validation status."""
+
+    VALID = "VALID"
+    INVALID = "INVALID"
+
+
 class ValidationCategory(str, Enum):
+    """Validation error categories."""
+
     SCHEMA = "SCHEMA"
     TIMESTAMP = "TIMESTAMP"
     DUPLICATE = "DUPLICATE"
@@ -47,20 +48,34 @@ class ValidationCategory(str, Enum):
 
 @dataclass
 class ValidationError:
+    """A single validation error."""
+
     category: ValidationCategory
     message: str
 
 
 @dataclass
 class ValidationResult:
+    """Result returned by validation operations."""
+
     valid: bool
     errors: list[ValidationError] = field(default_factory=list)
+
+    @property
+    def status(self) -> ValidationStatus:
+        """Return the explicit contract status."""
+        return (
+            ValidationStatus.VALID
+            if self.valid
+            else ValidationStatus.INVALID
+        )
 
     def add(
         self,
         category: ValidationCategory,
         message: str,
     ) -> None:
+        """Record an error and mark the result invalid."""
         self.valid = False
         self.errors.append(
             ValidationError(category, message)
@@ -70,13 +85,9 @@ class ValidationResult:
 @dataclass
 class SequenceState:
     """
-    Per (exchange, market_type, symbol, data_type) sequence tracking state.
+    Per (exchange, market_type, symbol, data_type) sequence state.
 
-    Owned and persisted by the caller and passed into validation functions.
-    No module-level mutable state is used.
-
-    This keeps replay deterministic: reconstructing the same SequenceState
-    and validating the same record stream produces the same result.
+    State is owned by the caller so replay remains deterministic.
     """
 
     last_sequence_id: dict[tuple, Union[int, str]] = field(
@@ -90,17 +101,13 @@ class SequenceState:
 def load_schema(
     schema_path: Path = SCHEMA_PATH,
 ) -> dict:
-    with open(schema_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """Load the locked market-data JSON Schema."""
+    with open(schema_path, "r", encoding="utf-8") as file:
+        return json.load(file)
 
 
 def _parse_timestamp(value: str) -> datetime:
-    """
-    Parse an ISO-8601/RFC-3339 timestamp.
-
-    A timezone/offset is mandatory so timestamps are never ambiguous.
-    """
-
+    """Parse an ISO-8601/RFC-3339 timestamp with timezone information."""
     if not isinstance(value, str):
         raise ValueError(
             f"Timestamp must be a string, got {type(value).__name__}"
@@ -120,7 +127,8 @@ def _parse_timestamp(value: str) -> datetime:
 
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ValueError(
-            f"Timestamp must include an explicit timezone/offset: {value!r}"
+            "Timestamp must include an explicit timezone/offset: "
+            f"{value!r}"
         )
 
     return parsed
@@ -130,14 +138,7 @@ def _collect_datetime_fields(
     schema: Any,
     path: tuple[str, ...] = (),
 ) -> list[tuple[str, ...]]:
-    """
-    Collect schema-defined fields whose JSON Schema declares:
-        format: date-time
-
-    This avoids hardcoding timestamp field names such as funding_time.
-    Only timestamp fields actually defined by the schema are considered.
-    """
-
+    """Collect schema-defined date-time fields recursively."""
     fields: list[tuple[str, ...]] = []
 
     if not isinstance(schema, dict):
@@ -167,11 +168,7 @@ def _collect_datetime_fields(
             )
         )
 
-    for keyword in (
-        "allOf",
-        "anyOf",
-        "oneOf",
-    ):
+    for keyword in ("allOf", "anyOf", "oneOf"):
         branches = schema.get(keyword)
 
         if isinstance(branches, list):
@@ -190,22 +187,11 @@ def _get_nested_value(
     record: Any,
     path: tuple[str, ...],
 ) -> tuple[bool, Any]:
-    """
-    Retrieve a value using a schema-derived property path.
-
-    Array traversal is intentionally conservative. The current market-data
-    contract uses date-time fields on record objects; nested array support is
-    included so the helper remains safe if future schema versions introduce
-    date-time fields inside arrays.
-    """
-
+    """Retrieve a value using a schema-derived property path."""
     current = record
 
     for part in path:
         if part == "[]":
-            if not isinstance(current, list):
-                return False, None
-
             return False, None
 
         if not isinstance(current, dict):
@@ -223,14 +209,15 @@ def validate_schema(
     record: dict,
     schema: dict,
 ) -> ValidationResult:
+    """Validate a record against the JSON Schema contract."""
     result = ValidationResult(valid=True)
 
     validator = jsonschema.Draft202012Validator(schema)
 
-    for err in validator.iter_errors(record):
+    for error in validator.iter_errors(record):
         result.add(
             ValidationCategory.SCHEMA,
-            err.message,
+            error.message,
         )
 
     return result
@@ -242,16 +229,10 @@ def validate_timestamp_integrity(
 ) -> ValidationResult:
     """
     Validate:
-
         event_time <= available_time <= ingestion_time
 
-    and validate every schema-defined `format: date-time` field.
-
-    JSON Schema format checking is intentionally not relied upon here because
-    Draft 2020-12 validators do not enforce format semantics unless a
-    FormatChecker is explicitly configured.
+    Also validate every schema-defined date-time field.
     """
-
     result = ValidationResult(valid=True)
 
     if schema is None:
@@ -281,11 +262,7 @@ def validate_timestamp_integrity(
         )
         return result
 
-    if not (
-        event_time
-        <= available_time
-        <= ingestion_time
-    ):
+    if not event_time <= available_time <= ingestion_time:
         result.add(
             ValidationCategory.TIMESTAMP,
             "Decision-time invariant violated: expected "
@@ -316,9 +293,8 @@ def validate_timestamp_integrity(
     return result
 
 
-def _sequence_key(
-    record: dict,
-) -> tuple:
+def _sequence_key(record: dict) -> tuple:
+    """Build the deterministic sequence-tracking key."""
     return (
         record.get("exchange"),
         record.get("market_type"),
@@ -331,13 +307,7 @@ def validate_sequence(
     record: dict,
     state: SequenceState,
 ) -> ValidationResult:
-    """
-    Duplicate/out-of-order check for records carrying sequence_info.
-
-    Records without sequence_info are skipped because not every data type
-    in the schema provides sequence information.
-    """
-
+    """Validate duplicate and out-of-order sequence information."""
     result = ValidationResult(valid=True)
 
     sequence_info = record.get("sequence_info")
@@ -346,7 +316,6 @@ def validate_sequence(
         return result
 
     key = _sequence_key(record)
-
     seq_id = sequence_info["sequence_id"]
 
     seen = state.seen_sequence_ids.setdefault(
@@ -363,7 +332,7 @@ def validate_sequence(
 
     seen.add(seq_id)
 
-    prev_seq_id = sequence_info.get(
+    previous_sequence_id = sequence_info.get(
         "previous_sequence_id"
     )
 
@@ -371,15 +340,14 @@ def validate_sequence(
 
     if (
         last_seen is not None
-        and prev_seq_id is not None
-        and prev_seq_id != last_seen
+        and previous_sequence_id is not None
+        and previous_sequence_id != last_seen
     ):
         result.add(
             ValidationCategory.SEQUENCE,
             "Out-of-order or missing sequence for "
-            f"key={key}: expected "
-            f"previous_sequence_id={last_seen}, "
-            f"got {prev_seq_id}",
+            f"key={key}: expected previous_sequence_id="
+            f"{last_seen}, got {previous_sequence_id}",
         )
 
     state.last_sequence_id[key] = seq_id
@@ -390,20 +358,23 @@ def validate_sequence(
 def validate_record(
     record: dict,
     schema: dict,
-    sequence_state: SequenceState,
+    sequence_state: Optional[SequenceState] = None,
 ) -> ValidationResult:
+    """
+    Validate one market-data record.
+
+    sequence_state is optional for the simple two-argument contract.
+    When omitted, a fresh state is used for this validation call.
+    """
+    if sequence_state is None:
+        sequence_state = SequenceState()
+
     combined = ValidationResult(valid=True)
 
     sub_results = (
         validate_schema(record, schema),
-        validate_timestamp_integrity(
-            record,
-            schema,
-        ),
-        validate_sequence(
-            record,
-            sequence_state,
-        ),
+        validate_timestamp_integrity(record, schema),
+        validate_sequence(record, sequence_state),
     )
 
     for sub_result in sub_results:
@@ -423,17 +394,12 @@ def validate_batch(
     schema: Optional[dict] = None,
     sequence_state: Optional[SequenceState] = None,
 ) -> tuple[list[ValidationResult], SequenceState]:
-    schema = (
-        schema
-        if schema is not None
-        else load_schema()
-    )
+    """Validate a batch while preserving explicit sequence state."""
+    if schema is None:
+        schema = load_schema()
 
-    sequence_state = (
-        sequence_state
-        if sequence_state is not None
-        else SequenceState()
-    )
+    if sequence_state is None:
+        sequence_state = SequenceState()
 
     results = [
         validate_record(
