@@ -70,3 +70,15 @@ def test_jsonl_source_rejects_invalid_json(tmp_path):
             start_time="2026-01-01T00:00:00+00:00",
             end_time="2026-01-01T01:00:00+00:00",
         )
+def test_jsonl_source_raises_when_file_is_missing(tmp_path):
+    path = tmp_path / "missing.jsonl"
+
+    source = JsonlHistoricalDataSource(path)
+
+    with pytest.raises(FileNotFoundError):
+        source.fetch(
+            symbol="BTCUSDT",
+            timeframe="5m",
+            start_time="2026-01-01T00:00:00+00:00",
+            end_time="2026-01-01T01:00:00+00:00",
+        )
