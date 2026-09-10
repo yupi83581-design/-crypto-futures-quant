@@ -4,66 +4,688 @@
   "title": "Crypto Futures Quant - Market Data Record",
   "description": "Exchange-agnostic contract for a single market-data record. event_time <= available_time <= ingestion_time must hold for every record; available_time is data-type specific and must never be assumed equal to event_time. This schema intentionally excludes prediction, probability, trading signal, position sizing, leverage, stop-loss/take-profit logic, and order execution.",
   "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exchange",
+        "market_type",
+        "symbol",
+        "data_type",
+        "event_time",
+        "available_time",
+        "ingestion_time",
+        "schema_version",
+        "timeframe",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume"
+      ],
+      "properties": {
+        "exchange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "market_type": {
+          "type": "string",
+          "enum": [
+            "SPOT",
+            "FUTURES"
+          ]
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_type": {
+          "const": "OHLCV"
+        },
+        "event_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "available_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ingestion_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "dataset_version": {
+          "type": "string"
+        },
+        "timeframe": {
+          "type": "string",
+          "pattern": "^[0-9]+(s|m|h|d|w)$"
+        },
+        "sequence_info": {
+          "$ref": "#/$defs/sequenceInfo"
+        },
+        "gap_recovery": {
+          "$ref": "#/$defs/gapRecovery"
+        },
+        "open": {
+          "type": "number"
+        },
+        "high": {
+          "type": "number"
+        },
+        "low": {
+          "type": "number"
+        },
+        "close": {
+          "type": "number"
+        },
+        "volume": {
+          "type": "number"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exchange",
+        "market_type",
+        "symbol",
+        "data_type",
+        "event_time",
+        "available_time",
+        "ingestion_time",
+        "schema_version",
+        "trade_id",
+        "price",
+        "quantity",
+        "side"
+      ],
+      "properties": {
+        "exchange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "market_type": {
+          "type": "string",
+          "enum": [
+            "SPOT",
+            "FUTURES"
+          ]
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_type": {
+          "const": "TRADE"
+        },
+        "event_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "available_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ingestion_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "dataset_version": {
+          "type": "string"
+        },
+        "sequence_info": {
+          "$ref": "#/$defs/sequenceInfo"
+        },
+        "gap_recovery": {
+          "$ref": "#/$defs/gapRecovery"
+        },
+        "trade_id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "price": {
+          "type": "number"
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "side": {
+          "$ref": "#/$defs/side"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exchange",
+        "market_type",
+        "symbol",
+        "data_type",
+        "event_time",
+        "available_time",
+        "ingestion_time",
+        "schema_version",
+        "mark_price"
+      ],
+      "properties": {
+        "exchange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "market_type": {
+          "$ref": "#/$defs/marketTypeFuturesOnly"
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_type": {
+          "const": "MARK_PRICE"
+        },
+        "event_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "available_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ingestion_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "dataset_version": {
+          "type": "string"
+        },
+        "sequence_info": {
+          "$ref": "#/$defs/sequenceInfo"
+        },
+        "gap_recovery": {
+          "$ref": "#/$defs/gapRecovery"
+        },
+        "mark_price": {
+          "type": "number"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exchange",
+        "market_type",
+        "symbol",
+        "data_type",
+        "event_time",
+        "available_time",
+        "ingestion_time",
+        "schema_version",
+        "index_price"
+      ],
+      "properties": {
+        "exchange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "market_type": {
+          "$ref": "#/$defs/marketTypeFuturesOnly"
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_type": {
+          "const": "INDEX_PRICE"
+        },
+        "event_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "available_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ingestion_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "dataset_version": {
+          "type": "string"
+        },
+        "sequence_info": {
+          "$ref": "#/$defs/sequenceInfo"
+        },
+        "gap_recovery": {
+          "$ref": "#/$defs/gapRecovery"
+        },
+        "index_price": {
+          "type": "number"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exchange",
+        "market_type",
+        "symbol",
+        "data_type",
+        "event_time",
+        "available_time",
+        "ingestion_time",
+        "schema_version",
+        "depth_snapshot"
+      ],
+      "properties": {
+        "exchange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "market_type": {
+          "type": "string",
+          "enum": [
+            "SPOT",
+            "FUTURES"
+          ]
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_type": {
+          "const": "ORDER_BOOK_L2"
+        },
+        "event_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "available_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ingestion_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "dataset_version": {
+          "type": "string"
+        },
+        "sequence_info": {
+          "$ref": "#/$defs/sequenceInfo"
+        },
+        "gap_recovery": {
+          "$ref": "#/$defs/gapRecovery"
+        },
+        "depth_snapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bids",
+            "asks"
+          ],
+          "properties": {
+            "bids": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/priceLevel"
+              }
+            },
+            "asks": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/priceLevel"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exchange",
+        "market_type",
+        "symbol",
+        "data_type",
+        "event_time",
+        "available_time",
+        "ingestion_time",
+        "schema_version",
+        "funding_rate",
+        "funding_time"
+      ],
+      "properties": {
+        "exchange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "market_type": {
+          "$ref": "#/$defs/marketTypeFuturesOnly"
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_type": {
+          "const": "FUNDING"
+        },
+        "event_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "available_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ingestion_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "dataset_version": {
+          "type": "string"
+        },
+        "sequence_info": {
+          "$ref": "#/$defs/sequenceInfo"
+        },
+        "gap_recovery": {
+          "$ref": "#/$defs/gapRecovery"
+        },
+        "funding_rate": {
+          "type": "number"
+        },
+        "funding_time": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exchange",
+        "market_type",
+        "symbol",
+        "data_type",
+        "event_time",
+        "available_time",
+        "ingestion_time",
+        "schema_version",
+        "open_interest"
+      ],
+      "properties": {
+        "exchange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "market_type": {
+          "$ref": "#/$defs/marketTypeFuturesOnly"
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_type": {
+          "const": "OPEN_INTEREST"
+        },
+        "event_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "available_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ingestion_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "dataset_version": {
+          "type": "string"
+        },
+        "sequence_info": {
+          "$ref": "#/$defs/sequenceInfo"
+        },
+        "gap_recovery": {
+          "$ref": "#/$defs/gapRecovery"
+        },
+        "open_interest": {
+          "type": "number"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exchange",
+        "market_type",
+        "symbol",
+        "data_type",
+        "event_time",
+        "available_time",
+        "ingestion_time",
+        "schema_version",
+        "side",
+        "price",
+        "quantity"
+      ],
+      "properties": {
+        "exchange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "market_type": {
+          "$ref": "#/$defs/marketTypeFuturesOnly"
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_type": {
+          "const": "LIQUIDATION"
+        },
+        "event_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "available_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ingestion_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "dataset_version": {
+          "type": "string"
+        },
+        "sequence_info": {
+          "$ref": "#/$defs/sequenceInfo"
+        },
+        "gap_recovery": {
+          "$ref": "#/$defs/gapRecovery"
+        },
+        "liquidation_id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "side": {
+          "$ref": "#/$defs/side"
+        },
+        "price": {
+          "type": "number"
+        },
+        "quantity": {
+          "type": "number"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exchange",
+        "market_type",
+        "symbol",
+        "data_type",
+        "event_time",
+        "available_time",
+        "ingestion_time",
+        "schema_version",
+        "basis_value"
+      ],
+      "properties": {
+        "exchange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "market_type": {
+          "$ref": "#/$defs/marketTypeFuturesOnly"
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_type": {
+          "const": "BASIS"
+        },
+        "event_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "available_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ingestion_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "dataset_version": {
+          "type": "string"
+        },
+        "sequence_info": {
+          "$ref": "#/$defs/sequenceInfo"
+        },
+        "gap_recovery": {
+          "$ref": "#/$defs/gapRecovery"
+        },
+        "basis_value": {
+          "type": "number"
+        },
+        "index_price_reference": {
+          "type": "number"
+        },
+        "futures_price_reference": {
+          "type": "number"
+        }
+      }
+    }
+  ],
   "$defs": {
-    "timestamp": {
+    "side": {
       "type": "string",
-      "format": "date-time",
-      "description": "ISO 8601 / RFC 3339 timestamp."
-    },
-    "exchange": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Exchange identifier. Must not encode a specific endpoint or API version."
-    },
-    "symbol": {
-      "type": "string",
-      "minLength": 1
-    },
-    "marketTypeSpotOrFutures": {
-      "type": "string",
-      "enum": ["SPOT", "FUTURES"]
+      "enum": [
+        "BUY",
+        "SELL"
+      ]
     },
     "marketTypeFuturesOnly": {
       "type": "string",
-      "const": "FUTURES",
-      "description": "Derivatives-only data type; must never be tagged as SPOT."
-    },
-    "timeframe": {
-      "type": "string",
-      "pattern": "^[0-9]+(s|m|h|d|w)$",
-      "description": "Bar interval, not hard-coded to a single value (e.g. 1m, 5m, 15m, 1h, 4h, 1d)."
-    },
-    "side": {
-      "type": "string",
-      "enum": ["BUY", "SELL"]
+      "const": "FUTURES"
     },
     "priceLevel": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["price", "quantity"],
+      "required": [
+        "price",
+        "quantity"
+      ],
       "properties": {
-        "price": { "type": "number" },
-        "quantity": { "type": "number" }
+        "price": {
+          "type": "number"
+        },
+        "quantity": {
+          "type": "number"
+        }
       }
     },
     "sequenceInfo": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sequence_id"],
+      "required": [
+        "sequence_id"
+      ],
       "properties": {
-        "sequence_id": { "type": ["integer", "string"] },
-        "previous_sequence_id": { "type": ["integer", "string", "null"] }
+        "sequence_id": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "previous_sequence_id": {
+          "type": [
+            "integer",
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "gapRecovery": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["gap_detected"],
+      "required": [
+        "gap_detected"
+      ],
       "properties": {
-        "gap_detected": { "type": "boolean" },
+        "gap_detected": {
+          "type": "boolean"
+        },
         "gap_reason_category": {
           "type": "string",
-          "enum": ["EXCHANGE_SIDE", "PIPELINE_SIDE"]
+          "enum": [
+            "EXCHANGE_SIDE",
+            "PIPELINE_SIDE"
+          ]
         },
         "gap_reason_detail": {
           "type": "string",
@@ -80,254 +702,29 @@
         },
         "recovery_source": {
           "type": "string",
-          "enum": ["REST_BACKFILL", "HISTORICAL_API", "MANUAL"]
+          "enum": [
+            "REST_BACKFILL",
+            "HISTORICAL_API",
+            "MANUAL"
+          ]
         },
         "recovery_status": {
           "type": "string",
-          "enum": ["PENDING", "MATCHED", "MISMATCHED", "FAILED"]
+          "enum": [
+            "PENDING",
+            "MATCHED",
+            "MISMATCHED",
+            "FAILED"
+          ]
         },
         "reconciliation_status": {
           "type": "string",
-          "enum": ["VALID", "INVALID"]
+          "enum": [
+            "VALID",
+            "INVALID"
+          ]
         }
       }
     }
-  },
-  "oneOf": [
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "exchange", "market_type", "symbol", "data_type",
-        "event_time", "available_time", "ingestion_time", "schema_version",
-        "timeframe", "open", "high", "low", "close", "volume"
-      ],
-      "properties": {
-        "exchange": { "$ref": "#/$defs/exchange" },
-        "market_type": { "$ref": "#/$defs/marketTypeSpotOrFutures" },
-        "symbol": { "$ref": "#/$defs/symbol" },
-        "data_type": { "const": "OHLCV" },
-        "event_time": { "$ref": "#/$defs/timestamp" },
-        "available_time": { "$ref": "#/$defs/timestamp" },
-        "ingestion_time": { "$ref": "#/$defs/timestamp" },
-        "schema_version": { "const": "1.0.0" },
-        "dataset_version": { "type": "string" },
-        "sequence_info": { "$ref": "#/$defs/sequenceInfo" },
-        "gap_recovery": { "$ref": "#/$defs/gapRecovery" },
-        "timeframe": { "$ref": "#/$defs/timeframe" },
-        "open": { "type": "number" },
-        "high": { "type": "number" },
-        "low": { "type": "number" },
-        "close": { "type": "number" },
-        "volume": { "type": "number" }
-      }
-    },
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "exchange", "market_type", "symbol", "data_type",
-        "event_time", "available_time", "ingestion_time", "schema_version",
-        "trade_id", "price", "quantity", "side"
-      ],
-      "properties": {
-        "exchange": { "$ref": "#/$defs/exchange" },
-        "market_type": { "$ref": "#/$defs/marketTypeSpotOrFutures" },
-        "symbol": { "$ref": "#/$defs/symbol" },
-        "data_type": { "const": "TRADE" },
-        "event_time": { "$ref": "#/$defs/timestamp" },
-        "available_time": { "$ref": "#/$defs/timestamp" },
-        "ingestion_time": { "$ref": "#/$defs/timestamp" },
-        "schema_version": { "const": "1.0.0" },
-        "dataset_version": { "type": "string" },
-        "sequence_info": { "$ref": "#/$defs/sequenceInfo" },
-        "gap_recovery": { "$ref": "#/$defs/gapRecovery" },
-        "trade_id": { "type": ["string", "integer"] },
-        "price": { "type": "number" },
-        "quantity": { "type": "number" },
-        "side": { "$ref": "#/$defs/side" }
-      }
-    },
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "exchange", "market_type", "symbol", "data_type",
-        "event_time", "available_time", "ingestion_time", "schema_version",
-        "mark_price"
-      ],
-      "properties": {
-        "exchange": { "$ref": "#/$defs/exchange" },
-        "market_type": { "$ref": "#/$defs/marketTypeFuturesOnly" },
-        "symbol": { "$ref": "#/$defs/symbol" },
-        "data_type": { "const": "MARK_PRICE" },
-        "event_time": { "$ref": "#/$defs/timestamp" },
-        "available_time": { "$ref": "#/$defs/timestamp" },
-        "ingestion_time": { "$ref": "#/$defs/timestamp" },
-        "schema_version": { "const": "1.0.0" },
-        "dataset_version": { "type": "string" },
-        "sequence_info": { "$ref": "#/$defs/sequenceInfo" },
-        "gap_recovery": { "$ref": "#/$defs/gapRecovery" },
-        "mark_price": { "type": "number" }
-      }
-    },
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "exchange", "market_type", "symbol", "data_type",
-        "event_time", "available_time", "ingestion_time", "schema_version",
-        "index_price"
-      ],
-      "properties": {
-        "exchange": { "$ref": "#/$defs/exchange" },
-        "market_type": { "$ref": "#/$defs/marketTypeFuturesOnly" },
-        "symbol": { "$ref": "#/$defs/symbol" },
-        "data_type": { "const": "INDEX_PRICE" },
-        "event_time": { "$ref": "#/$defs/timestamp" },
-        "available_time": { "$ref": "#/$defs/timestamp" },
-        "ingestion_time": { "$ref": "#/$defs/timestamp" },
-        "schema_version": { "const": "1.0.0" },
-        "dataset_version": { "type": "string" },
-        "sequence_info": { "$ref": "#/$defs/sequenceInfo" },
-        "gap_recovery": { "$ref": "#/$defs/gapRecovery" },
-        "index_price": { "type": "number" }
-      }
-    },
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "exchange", "market_type", "symbol", "data_type",
-        "event_time", "available_time", "ingestion_time", "schema_version",
-        "depth_snapshot"
-      ],
-      "properties": {
-        "exchange": { "$ref": "#/$defs/exchange" },
-        "market_type": { "$ref": "#/$defs/marketTypeSpotOrFutures" },
-        "symbol": { "$ref": "#/$defs/symbol" },
-        "data_type": { "const": "ORDER_BOOK_L2" },
-        "event_time": { "$ref": "#/$defs/timestamp" },
-        "available_time": { "$ref": "#/$defs/timestamp" },
-        "ingestion_time": { "$ref": "#/$defs/timestamp" },
-        "schema_version": { "const": "1.0.0" },
-        "dataset_version": { "type": "string" },
-        "sequence_info": { "$ref": "#/$defs/sequenceInfo" },
-        "gap_recovery": { "$ref": "#/$defs/gapRecovery" },
-        "depth_snapshot": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["bids", "asks"],
-          "properties": {
-            "bids": {
-              "type": "array",
-              "items": { "$ref": "#/$defs/priceLevel" }
-            },
-            "asks": {
-              "type": "array",
-              "items": { "$ref": "#/$defs/priceLevel" }
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "exchange", "market_type", "symbol", "data_type",
-        "event_time", "available_time", "ingestion_time", "schema_version",
-        "funding_rate", "funding_time"
-      ],
-      "properties": {
-        "exchange": { "$ref": "#/$defs/exchange" },
-        "market_type": { "$ref": "#/$defs/marketTypeFuturesOnly" },
-        "symbol": { "$ref": "#/$defs/symbol" },
-        "data_type": { "const": "FUNDING" },
-        "event_time": { "$ref": "#/$defs/timestamp" },
-        "available_time": { "$ref": "#/$defs/timestamp" },
-        "ingestion_time": { "$ref": "#/$defs/timestamp" },
-        "schema_version": { "const": "1.0.0" },
-        "dataset_version": { "type": "string" },
-        "sequence_info": { "$ref": "#/$defs/sequenceInfo" },
-        "gap_recovery": { "$ref": "#/$defs/gapRecovery" },
-        "funding_rate": { "type": "number" },
-        "funding_time": { "$ref": "#/$defs/timestamp" }
-      }
-    },
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "exchange", "market_type", "symbol", "data_type",
-        "event_time", "available_time", "ingestion_time", "schema_version",
-        "open_interest"
-      ],
-      "properties": {
-        "exchange": { "$ref": "#/$defs/exchange" },
-        "market_type": { "$ref": "#/$defs/marketTypeFuturesOnly" },
-        "symbol": { "$ref": "#/$defs/symbol" },
-        "data_type": { "const": "OPEN_INTEREST" },
-        "event_time": { "$ref": "#/$defs/timestamp" },
-        "available_time": { "$ref": "#/$defs/timestamp" },
-        "ingestion_time": { "$ref": "#/$defs/timestamp" },
-        "schema_version": { "const": "1.0.0" },
-        "dataset_version": { "type": "string" },
-        "sequence_info": { "$ref": "#/$defs/sequenceInfo" },
-        "gap_recovery": { "$ref": "#/$defs/gapRecovery" },
-        "open_interest": { "type": "number" }
-      }
-    },
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "exchange", "market_type", "symbol", "data_type",
-        "event_time", "available_time", "ingestion_time", "schema_version",
-        "side", "price", "quantity"
-      ],
-      "properties": {
-        "exchange": { "$ref": "#/$defs/exchange" },
-        "market_type": { "$ref": "#/$defs/marketTypeFuturesOnly" },
-        "symbol": { "$ref": "#/$defs/symbol" },
-        "data_type": { "const": "LIQUIDATION" },
-        "event_time": { "$ref": "#/$defs/timestamp" },
-        "available_time": { "$ref": "#/$defs/timestamp" },
-        "ingestion_time": { "$ref": "#/$defs/timestamp" },
-        "schema_version": { "const": "1.0.0" },
-        "dataset_version": { "type": "string" },
-        "sequence_info": { "$ref": "#/$defs/sequenceInfo" },
-        "gap_recovery": { "$ref": "#/$defs/gapRecovery" },
-        "liquidation_id": { "type": ["string", "integer"] },
-        "side": { "$ref": "#/$defs/side" },
-        "price": { "type": "number" },
-        "quantity": { "type": "number" }
-      }
-    },
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "exchange", "market_type", "symbol", "data_type",
-        "event_time", "available_time", "ingestion_time", "schema_version",
-        "basis_value"
-      ],
-      "properties": {
-        "exchange": { "$ref": "#/$defs/exchange" },
-        "market_type": { "$ref": "#/$defs/marketTypeFuturesOnly" },
-        "symbol": { "$ref": "#/$defs/symbol" },
-        "data_type": { "const": "BASIS" },
-        "event_time": { "$ref": "#/$defs/timestamp" },
-        "available_time": { "$ref": "#/$defs/timestamp" },
-        "ingestion_time": { "$ref": "#/$defs/timestamp" },
-        "schema_version": { "const": "1.0.0" },
-        "dataset_version": { "type": "string" },
-        "sequence_info": { "$ref": "#/$defs/sequenceInfo" },
-        "gap_recovery": { "$ref": "#/$defs/gapRecovery" },
-        "basis_value": { "type": "number" },
-        "index_price_reference": { "type": "number" },
-        "futures_price_reference": { "type": "number" }
-      }
-    }
-  ]
+  }
 }
