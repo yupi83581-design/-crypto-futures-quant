@@ -57,6 +57,24 @@ def test_calibration_bucket_reports_predicted_and_observed_frequency():
 
 def test_probability_equal_to_bucket_boundary_belongs_to_upper_bucket():
     result = evaluate_calibration(
+        actual=[0, 1, 0],
+        probabilities=[0.25, 0.5, 1.0],
+        bucket_count=2,
+    )
+
+    assert len(result.buckets) == 2
+
+    low = result.buckets[0]
+    high = result.buckets[1]
+
+    assert low.predicted_probability == pytest.approx(0.25)
+    assert low.observed_frequency == pytest.approx(0.0)
+    assert low.sample_count == 1
+
+    assert high.predicted_probability == pytest.approx(0.75)
+    assert high.observed_frequency == pytest.approx(0.5)
+    assert high.sample_count == 2
+    result = evaluate_calibration(
         actual=[0, 1],
         probabilities=[0.5, 1.0],
         bucket_count=2,
