@@ -33,24 +33,26 @@ def evaluate_calibration(
 ) -> CalibrationResult:
     """Evaluate binary probability predictions.
 
-    Parameters
-    ----------
-    actual:
-        Binary observed outcomes: 0 or 1.
-    probabilities:
-        Predicted probability of class 1 for each observation.
-    bucket_count:
-        Number of equally sized probability buckets.
+    Probability buckets use left-closed, right-open intervals:
 
-    Returns
-    -------
-    CalibrationResult
-        Contains the Brier score and non-empty calibration buckets.
+        [0.0, 0.1)
+        [0.1, 0.2)
+        ...
+        [0.9, 1.0]
 
-    Notes
-    -----
-    This function evaluates calibration only. It does not claim that
-    calibrated probabilities imply profitable trading performance.
+    Therefore a probability exactly equal to a bucket boundary belongs
+    to the bucket beginning at that boundary. Probability 1.0 belongs
+    to the final bucket.
+
+    The function calculates:
+
+    - Brier score
+    - mean predicted probability per non-empty bucket
+    - observed positive frequency per non-empty bucket
+    - sample count per non-empty bucket
+
+    This module evaluates probability quality only. It does not claim
+    profitability, trading edge, or future performance.
     """
     _validate_inputs(actual, probabilities, bucket_count)
 
@@ -61,7 +63,7 @@ def evaluate_calibration(
         )
 
     brier_score = sum(
-        (probability - outcome) ** 2
+        (float(probability) - int(outcome)) ** 2
         for outcome, probability in zip(actual, probabilities)
     ) / len(actual)
 
@@ -69,34 +71,38 @@ def evaluate_calibration(
 
     for bucket_index in range(bucket_count):
         lower_bound = bucket_index / bucket_count
+        upper_bound = (bucket_index + 1) / bucket_count
 
-        if bucket_index == bucket_count - 1:
-            upper_bound = 1.0
-        else:
-            upper_bound = (bucket_index + 1) / bucket_count
+        bucket_items = []
 
-        bucket_items = [
-            (outcome, probability)
-            for outcome, probability in zip(actual, probabilities)
-            if (
-                probability >= lower_bound
-                and (
-                    probability <= upper_bound
-                    if bucket_index == bucket_count - 1
-                    else probability < upper_bound
+        for outcome, probability in zip(actual, probabilities):
+            probability = float(probability)
+
+            if bucket_index == bucket_count - 1:
+                belongs_to_bucket = (
+                    lower_bound <= probability <= upper_bound
                 )
-            )
-        ]
+            else:
+                belongs_to_bucket = (
+                    lower_bound <= probability < upper_bound
+                )
+
+            if belongs_to_bucket:
+                bucket_items.append(
+                    (int(outcome), probability)
+                )
 
         if not bucket_items:
             continue
 
         predicted_probability = sum(
-            probability for _, probability in bucket_items
+            probability
+            for _, probability in bucket_items
         ) / len(bucket_items)
 
         observed_frequency = sum(
-            outcome for outcome, _ in bucket_items
+            outcome
+            for outcome, _ in bucket_items
         ) / len(bucket_items)
 
         buckets.append(
@@ -110,7 +116,7 @@ def evaluate_calibration(
         )
 
     return CalibrationResult(
-        brier_score=brier_score,
+        brier_score=float(brier_score),
         buckets=tuple(buckets),
     )
 
@@ -120,7 +126,8 @@ def _validate_inputs(
     probabilities: Sequence[float],
     bucket_count: int,
 ) -> None:
-    """Validate calibration inputs before computation."""
+    """Validate calibration inputs."""
+
     if len(actual) != len(probabilities):
         raise ValueError(
             "actual and probabilities must have the same length"
@@ -132,7 +139,8 @@ def _validate_inputs(
         or bucket_count < 1
     ):
         raise ValueError(
-            f"bucket_count must be a positive integer, got {bucket_count!r}"
+            "bucket_count must be a positive integer, "
+            f"got {bucket_count!r}"
         )
 
     for index, outcome in enumerate(actual):
@@ -152,14 +160,16 @@ def _validate_inputs(
                 f"got {probability!r}"
             )
 
-        if not math.isfinite(float(probability)):
+        probability = float(probability)
+
+        if not math.isfinite(probability):
             raise ValueError(
                 f"probability at index {index} must be finite, "
                 f"got {probability!r}"
             )
 
-        if not 0.0 <= float(probability) <= 1.0:
+        if not 0.0 <= probability <= 1.0:
             raise ValueError(
-                f"probability at index {index} must be between 0 and 1, "
-                f"got {probability!r}"
+                f"probability at index {index} must be between "
+                f"0 and 1, got {probability!r}"
             )
