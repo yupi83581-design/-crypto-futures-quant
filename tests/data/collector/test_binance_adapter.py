@@ -1,5 +1,6 @@
 """Tests for the Binance public market-data adapter."""
 
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -40,6 +41,11 @@ def kline(
     ]
 
 
+def json_response(payload):
+    """Return the bytes contract expected from the HTTP transport."""
+    return json.dumps(payload).encode("utf-8")
+
+
 def test_fetch_market_data_paginates_and_returns_canonical_records():
     pages = [
         [
@@ -55,7 +61,7 @@ def test_fetch_market_data_paginates_and_returns_canonical_records():
 
     def fake_http_get(url, timeout):
         calls.append((url, timeout))
-        return pages.pop(0)
+        return json_response(pages.pop(0))
 
     adapter = BinancePublicMarketDataAdapter(
         http_get=fake_http_get,
@@ -66,15 +72,22 @@ def test_fetch_market_data_paginates_and_returns_canonical_records():
         symbol="BTCUSDT",
         timeframe="5m",
         start_time=datetime(1970, 1, 1, tzinfo=UTC),
-        end_time=datetime(1970, 1, 1, 0, 10, tzinfo=UTC),
+        end_time=datetime(1970, 1, 1, 0, 15, tzinfo=UTC),
     )
 
-    assert len(records) == 2
+    assert len(records) == 3
     assert [record["event_time"] for record in records] == [
-        datetime(1970, 1, 1, 0, 0, tzinfo=UTC),
-        datetime(1970, 1, 1, 0, 5, tzinfo=UTC),
+        datetime(1970, 1, 1, 0, 0, tzinfo=UTC).isoformat(
+            timespec="milliseconds"
+        ).replace("+00:00", "Z"),
+        datetime(1970, 1, 1, 0, 5, tzinfo=UTC).isoformat(
+            timespec="milliseconds"
+        ).replace("+00:00", "Z"),
+        datetime(1970, 1, 1, 0, 10, tzinfo=UTC).isoformat(
+            timespec="milliseconds"
+        ).replace("+00:00", "Z"),
     ]
-    assert len(calls) == 1
+    assert len(calls) == 2
 
 
 def test_identical_duplicate_is_deduplicated():
@@ -85,7 +98,7 @@ def test_identical_duplicate_is_deduplicated():
     ]
 
     adapter = BinancePublicMarketDataAdapter(
-        http_get=lambda url, timeout: payload,
+        http_get=lambda url, timeout: json_response(payload),
     )
 
     records = adapter.fetch_market_data(
@@ -105,7 +118,7 @@ def test_conflicting_duplicate_is_rejected():
     ]
 
     adapter = BinancePublicMarketDataAdapter(
-        http_get=lambda url, timeout: payload,
+        http_get=lambda url, timeout: json_response(payload),
     )
 
     with pytest.raises(MalformedMarketDataError):
@@ -122,9 +135,10 @@ def test_incomplete_candle_is_rejected():
     open_time = now - timedelta(minutes=2)
 
     adapter = BinancePublicMarketDataAdapter(
-        http_get=lambda url, timeout: [
-            kline(int(open_time.timestamp() * 1000))
-        ],
+        http_get=lambda url, timeout: json_response(
+            [kline(int(open_time.timestamp() * 1000))]
+        ),
+        clock=lambda: now,
     )
 
     with pytest.raises(MalformedMarketDataError):
@@ -132,7 +146,7 @@ def test_incomplete_candle_is_rejected():
             symbol="BTCUSDT",
             timeframe="5m",
             start_time=open_time - timedelta(minutes=5),
-            end_time=now + timedelta(minutes=5),
+            end_time=now,
         )
 
 
@@ -148,7 +162,7 @@ def test_invalid_ohlc_relationship_is_rejected():
     ]
 
     adapter = BinancePublicMarketDataAdapter(
-        http_get=lambda url, timeout: payload,
+        http_get=lambda url, timeout: json_response(payload),
     )
 
     with pytest.raises(MalformedMarketDataError):
@@ -166,7 +180,7 @@ def test_negative_volume_is_rejected():
     ]
 
     adapter = BinancePublicMarketDataAdapter(
-        http_get=lambda url, timeout: payload,
+        http_get=lambda url, timeout: json_response(payload),
     )
 
     with pytest.raises(MalformedMarketDataError):
@@ -182,7 +196,7 @@ def test_available_time_is_not_after_ingestion_time():
     ingestion_time = datetime(2026, 1, 1, 1, 0, tzinfo=UTC)
 
     adapter = BinancePublicMarketDataAdapter(
-        http_get=lambda url, timeout: [kline(0)],
+        http_get=lambda url, timeout: json_response([kline(0)]),
         clock=lambda: ingestion_time,
     )
 
@@ -245,7 +259,7 @@ def test_records_are_sorted_by_event_time():
     ]
 
     adapter = BinancePublicMarketDataAdapter(
-        http_get=lambda url, timeout: payload,
+        http_get=lambda url, timeout: json_response(payload),
     )
 
     records = adapter.fetch_market_data(
