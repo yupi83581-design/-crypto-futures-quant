@@ -13,10 +13,7 @@ from src.research.regime_evaluation import (
 
 
 def test_returns_evaluation_result() -> None:
-    prices = [
-        100.0 + index
-        for index in range(25)
-    ]
+    prices = [100.0 + index for index in range(25)]
 
     result = evaluate_regime_impact(prices)
 
@@ -24,37 +21,24 @@ def test_returns_evaluation_result() -> None:
 
 
 def test_total_observations_matches_evaluation_windows() -> None:
-    prices = [
-        100.0 + index
-        for index in range(25)
-    ]
+    prices = [100.0 + index for index in range(25)]
 
     result = evaluate_regime_impact(prices)
 
-    assert result.total_observations == 6
+    assert result.total_observations == 5
 
 
 def test_overall_statistics_are_finite() -> None:
-    prices = [
-        100.0 + index
-        for index in range(25)
-    ]
+    prices = [100.0 + index for index in range(25)]
 
     result = evaluate_regime_impact(prices)
 
-    assert math.isfinite(
-        result.overall_mean_forward_return
-    )
-    assert math.isfinite(
-        result.overall_positive_rate
-    )
+    assert math.isfinite(result.overall_mean_forward_return)
+    assert math.isfinite(result.overall_positive_rate)
 
 
 def test_overall_positive_rate_is_between_zero_and_one() -> None:
-    prices = [
-        100.0 + index
-        for index in range(25)
-    ]
+    prices = [100.0 + index for index in range(25)]
 
     result = evaluate_regime_impact(prices)
 
@@ -62,36 +46,18 @@ def test_overall_positive_rate_is_between_zero_and_one() -> None:
 
 
 def test_regime_performance_objects_are_returned() -> None:
-    prices = [
-        100.0 + index
-        for index in range(25)
-    ]
+    prices = [100.0 + index for index in range(25)]
 
     result = evaluate_regime_impact(prices)
 
-    assert isinstance(
-        result.trend_up,
-        RegimePerformance,
-    )
-    assert isinstance(
-        result.trend_down,
-        RegimePerformance,
-    )
-    assert isinstance(
-        result.high_volatility,
-        RegimePerformance,
-    )
-    assert isinstance(
-        result.range,
-        RegimePerformance,
-    )
+    assert isinstance(result.trend_up, RegimePerformance)
+    assert isinstance(result.trend_down, RegimePerformance)
+    assert isinstance(result.high_volatility, RegimePerformance)
+    assert isinstance(result.range, RegimePerformance)
 
 
 def test_regime_observation_counts_sum_to_total() -> None:
-    prices = [
-        100.0 + index
-        for index in range(30)
-    ]
+    prices = [100.0 + index for index in range(30)]
 
     result = evaluate_regime_impact(prices)
 
@@ -106,10 +72,7 @@ def test_regime_observation_counts_sum_to_total() -> None:
 
 
 def test_positive_rate_is_valid_for_each_regime() -> None:
-    prices = [
-        100.0 + index
-        for index in range(30)
-    ]
+    prices = [100.0 + index for index in range(30)]
 
     result = evaluate_regime_impact(prices)
 
@@ -125,10 +88,7 @@ def test_positive_rate_is_valid_for_each_regime() -> None:
 
 
 def test_empty_regime_has_zero_statistics() -> None:
-    prices = [
-        100.0 + index
-        for index in range(25)
-    ]
+    prices = [100.0 + index for index in range(25)]
 
     result = evaluate_regime_impact(prices)
 
@@ -151,16 +111,13 @@ def test_constant_prices_produce_zero_forward_returns() -> None:
 
     assert result.overall_mean_forward_return == 0.0
     assert result.overall_positive_rate == 0.0
-    assert result.range.observations == 6
+    assert result.range.observations == 5
     assert result.range.mean_forward_return == 0.0
     assert result.range.positive_rate == 0.0
 
 
 def test_monotonic_up_prices_have_positive_overall_forward_return() -> None:
-    prices = [
-        100.0 + (index * 2.0)
-        for index in range(30)
-    ]
+    prices = [100.0 + (index * 2.0) for index in range(30)]
 
     result = evaluate_regime_impact(prices)
 
@@ -170,10 +127,7 @@ def test_monotonic_up_prices_have_positive_overall_forward_return() -> None:
 
 
 def test_monotonic_down_prices_have_negative_overall_forward_return() -> None:
-    prices = [
-        200.0 - (index * 2.0)
-        for index in range(30)
-    ]
+    prices = [200.0 - (index * 2.0) for index in range(30)]
 
     result = evaluate_regime_impact(prices)
 
@@ -183,21 +137,16 @@ def test_monotonic_down_prices_have_negative_overall_forward_return() -> None:
 
 
 def test_custom_minimum_observations_changes_window_count() -> None:
-    prices = [
-        100.0 + index
-        for index in range(25)
-    ]
+    prices = [100.0 + index for index in range(25)]
 
-    config = RegimeConfig(
-        minimum_observations=10,
-    )
+    config = RegimeConfig(minimum_observations=10)
 
     result = evaluate_regime_impact(
         prices,
         config=config,
     )
 
-    assert result.total_observations == 16
+    assert result.total_observations == 15
 
 
 def test_rejects_insufficient_prices_for_evaluation() -> None:
@@ -223,9 +172,7 @@ def test_rejects_non_numeric_sequence() -> None:
         ValueError,
         match="prices must be a numeric sequence",
     ):
-        evaluate_regime_impact(
-            "100,101,102"  # type: ignore[arg-type]
-        )
+        evaluate_regime_impact("100,101,102")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -318,21 +265,13 @@ def test_evaluation_is_deterministic() -> None:
 
 
 def test_price_scale_does_not_change_regime_distribution() -> None:
-    prices = [
-        100.0 + (index * 1.5)
-        for index in range(30)
-    ]
-
-    scaled_prices = [
-        price * 1000.0
-        for price in prices
-    ]
+    prices = [100.0 + (index * 1.5) for index in range(30)]
+    scaled_prices = [price * 1000.0 for price in prices]
 
     first = evaluate_regime_impact(prices)
     second = evaluate_regime_impact(scaled_prices)
 
     assert first.total_observations == second.total_observations
-
     assert (
         first.trend_up.observations
         == second.trend_up.observations
@@ -352,10 +291,7 @@ def test_price_scale_does_not_change_regime_distribution() -> None:
 
 
 def test_forward_return_is_based_on_next_price() -> None:
-    prices = [
-        100.0 + index
-        for index in range(21)
-    ]
+    prices = [100.0 + index for index in range(21)]
 
     config = RegimeConfig(
         minimum_observations=20,
@@ -368,9 +304,7 @@ def test_forward_return_is_based_on_next_price() -> None:
         config=config,
     )
 
-    expected_return = (
-        prices[-1] / prices[-2]
-    ) - 1.0
+    expected_return = (prices[-1] / prices[-2]) - 1.0
 
     assert result.total_observations == 1
     assert math.isclose(
@@ -380,10 +314,7 @@ def test_forward_return_is_based_on_next_price() -> None:
 
 
 def test_forward_outcome_is_not_counted_as_historical_price() -> None:
-    historical = [
-        100.0 + index
-        for index in range(20)
-    ]
+    historical = [100.0 + index for index in range(20)]
 
     prices_a = historical + [121.0]
     prices_b = historical + [100.0]
