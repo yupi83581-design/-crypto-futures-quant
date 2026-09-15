@@ -36,27 +36,9 @@ def test_total_observations_equals_price_count_minus_one() -> None:
 
 def test_regime_bucket_counts_sum_to_total() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[
-            90.0,
-            50.0,
-            10.0,
-            70.0,
-            50.0,
-        ],
-        sell_volumes=[
-            10.0,
-            50.0,
-            90.0,
-            30.0,
-            50.0,
-        ],
-        prices=[
-            100.0,
-            101.0,
-            100.0,
-            99.0,
-            100.0,
-        ],
+        buy_volumes=[90.0, 50.0, 10.0, 70.0, 50.0],
+        sell_volumes=[10.0, 50.0, 90.0, 30.0, 50.0],
+        prices=[100.0, 101.0, 100.0, 99.0, 100.0],
     )
 
     bucket_count = (
@@ -127,8 +109,8 @@ def test_zero_forward_return_is_not_positive() -> None:
 
 def test_buy_dominant_bucket_uses_positive_threshold() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[60.0],
-        sell_volumes=[40.0],
+        buy_volumes=[60.0, 50.0],
+        sell_volumes=[40.0, 50.0],
         prices=[100.0, 101.0],
         imbalance_threshold=0.20,
     )
@@ -140,8 +122,8 @@ def test_buy_dominant_bucket_uses_positive_threshold() -> None:
 
 def test_sell_dominant_bucket_uses_negative_threshold() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[40.0],
-        sell_volumes=[60.0],
+        buy_volumes=[40.0, 50.0],
+        sell_volumes=[60.0, 50.0],
         prices=[100.0, 99.0],
         imbalance_threshold=0.20,
     )
@@ -153,21 +135,21 @@ def test_sell_dominant_bucket_uses_negative_threshold() -> None:
 
 def test_balanced_bucket_is_between_thresholds() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[55.0],
-        sell_volumes=[45.0],
-        prices=[100.0, 101.0],
+        buy_volumes=[55.0, 50.0, 50.0, 50.0],
+        sell_volumes=[45.0, 50.0, 50.0, 50.0],
+        prices=[100.0, 101.0, 100.0, 102.0],
         imbalance_threshold=0.20,
     )
 
-    assert result.balanced.observations == 1
+    assert result.balanced.observations == 3
     assert result.buy_dominant.observations == 0
     assert result.sell_dominant.observations == 0
 
 
 def test_threshold_boundary_is_buy_dominant() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[60.0],
-        sell_volumes=[40.0],
+        buy_volumes=[60.0, 50.0],
+        sell_volumes=[40.0, 50.0],
         prices=[100.0, 101.0],
         imbalance_threshold=0.20,
     )
@@ -177,8 +159,8 @@ def test_threshold_boundary_is_buy_dominant() -> None:
 
 def test_threshold_boundary_is_sell_dominant() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[40.0],
-        sell_volumes=[60.0],
+        buy_volumes=[40.0, 50.0],
+        sell_volumes=[60.0, 50.0],
         prices=[100.0, 99.0],
         imbalance_threshold=0.20,
     )
@@ -188,8 +170,8 @@ def test_threshold_boundary_is_sell_dominant() -> None:
 
 def test_performance_objects_are_returned() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[70.0, 50.0],
-        sell_volumes=[30.0, 50.0],
+        buy_volumes=[70.0, 50.0, 50.0],
+        sell_volumes=[30.0, 50.0, 50.0],
         prices=[100.0, 101.0, 100.0],
     )
 
@@ -209,8 +191,8 @@ def test_performance_objects_are_returned() -> None:
 
 def test_empty_bucket_has_zero_statistics() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[70.0, 70.0],
-        sell_volumes=[30.0, 30.0],
+        buy_volumes=[70.0, 70.0, 70.0],
+        sell_volumes=[30.0, 30.0, 30.0],
         prices=[100.0, 101.0, 102.0],
     )
 
@@ -223,7 +205,7 @@ def test_bucket_positive_rate_is_valid() -> None:
     result = evaluate_order_flow_impact(
         buy_volumes=[70.0, 50.0, 30.0],
         sell_volumes=[30.0, 50.0, 70.0],
-        prices=[100.0, 101.0, 100.0, 99.0],
+        prices=[100.0, 101.0, 100.0],
     )
 
     performances = [
@@ -240,7 +222,7 @@ def test_overall_positive_rate_is_bounded() -> None:
     result = evaluate_order_flow_impact(
         buy_volumes=[70.0, 50.0, 30.0],
         sell_volumes=[30.0, 50.0, 70.0],
-        prices=[100.0, 101.0, 100.0, 99.0],
+        prices=[100.0, 101.0, 100.0],
     )
 
     assert 0.0 <= result.overall_positive_rate <= 1.0
@@ -248,8 +230,8 @@ def test_overall_positive_rate_is_bounded() -> None:
 
 def test_all_buy_dominant_observations_are_bucketed_correctly() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[90.0, 80.0, 70.0],
-        sell_volumes=[10.0, 20.0, 30.0],
+        buy_volumes=[90.0, 80.0, 70.0, 60.0],
+        sell_volumes=[10.0, 20.0, 30.0, 40.0],
         prices=[100.0, 101.0, 102.0, 103.0],
     )
 
@@ -260,8 +242,8 @@ def test_all_buy_dominant_observations_are_bucketed_correctly() -> None:
 
 def test_all_sell_dominant_observations_are_bucketed_correctly() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[10.0, 20.0, 30.0],
-        sell_volumes=[90.0, 80.0, 70.0],
+        buy_volumes=[10.0, 20.0, 30.0, 40.0],
+        sell_volumes=[90.0, 80.0, 70.0, 60.0],
         prices=[100.0, 99.0, 98.0, 97.0],
     )
 
@@ -272,8 +254,8 @@ def test_all_sell_dominant_observations_are_bucketed_correctly() -> None:
 
 def test_all_balanced_observations_are_bucketed_correctly() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[55.0, 52.0, 51.0],
-        sell_volumes=[45.0, 48.0, 49.0],
+        buy_volumes=[55.0, 52.0, 51.0, 50.0],
+        sell_volumes=[45.0, 48.0, 49.0, 50.0],
         prices=[100.0, 101.0, 100.0, 102.0],
     )
 
@@ -283,19 +265,19 @@ def test_all_balanced_observations_are_bucketed_correctly() -> None:
 
 
 def test_future_price_does_not_change_order_flow_bucket() -> None:
-    common_buy = [80.0, 80.0]
-    common_sell = [20.0, 20.0]
+    common_buy = [80.0, 80.0, 80.0]
+    common_sell = [20.0, 20.0, 20.0]
 
     result_up = evaluate_order_flow_impact(
         buy_volumes=common_buy,
         sell_volumes=common_sell,
-        prices=[100.0, 101.0, 120.0],
+        prices=[100.0, 110.0, 120.0],
     )
 
     result_down = evaluate_order_flow_impact(
         buy_volumes=common_buy,
         sell_volumes=common_sell,
-        prices=[100.0, 101.0, 80.0],
+        prices=[100.0, 110.0, 80.0],
     )
 
     assert result_up.buy_dominant.observations == 2
@@ -315,15 +297,15 @@ def test_future_price_does_not_change_order_flow_bucket() -> None:
 
 def test_custom_threshold_changes_bucket_assignment() -> None:
     result_default = evaluate_order_flow_impact(
-        buy_volumes=[60.0],
-        sell_volumes=[40.0],
+        buy_volumes=[60.0, 50.0],
+        sell_volumes=[40.0, 50.0],
         prices=[100.0, 101.0],
         imbalance_threshold=0.20,
     )
 
     result_strict = evaluate_order_flow_impact(
-        buy_volumes=[60.0],
-        sell_volumes=[40.0],
+        buy_volumes=[60.0, 50.0],
+        sell_volumes=[40.0, 50.0],
         prices=[100.0, 101.0],
         imbalance_threshold=0.30,
     )
@@ -334,8 +316,8 @@ def test_custom_threshold_changes_bucket_assignment() -> None:
 
 def test_results_are_deterministic() -> None:
     kwargs = {
-        "buy_volumes": [80.0, 50.0, 20.0, 70.0],
-        "sell_volumes": [20.0, 50.0, 80.0, 30.0],
+        "buy_volumes": [80.0, 50.0, 20.0, 70.0, 50.0],
+        "sell_volumes": [20.0, 50.0, 80.0, 30.0, 50.0],
         "prices": [100.0, 101.0, 100.0, 99.0, 100.0],
     }
 
@@ -347,8 +329,8 @@ def test_results_are_deterministic() -> None:
 
 def test_result_statistics_are_finite() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[80.0, 50.0, 20.0],
-        sell_volumes=[20.0, 50.0, 80.0],
+        buy_volumes=[80.0, 50.0, 20.0, 50.0],
+        sell_volumes=[20.0, 50.0, 80.0, 50.0],
         prices=[100.0, 101.0, 100.0, 99.0],
     )
 
@@ -506,8 +488,8 @@ def test_rejects_zero_total_order_flow() -> None:
 
 def test_accepts_zero_buy_volume_when_sell_volume_exists() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[0.0],
-        sell_volumes=[100.0],
+        buy_volumes=[0.0, 50.0],
+        sell_volumes=[100.0, 50.0],
         prices=[100.0, 99.0],
     )
 
@@ -516,8 +498,8 @@ def test_accepts_zero_buy_volume_when_sell_volume_exists() -> None:
 
 def test_accepts_zero_sell_volume_when_buy_volume_exists() -> None:
     result = evaluate_order_flow_impact(
-        buy_volumes=[100.0],
-        sell_volumes=[0.0],
+        buy_volumes=[100.0, 50.0],
+        sell_volumes=[0.0, 50.0],
         prices=[100.0, 101.0],
     )
 
