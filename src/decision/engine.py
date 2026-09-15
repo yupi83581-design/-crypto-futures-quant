@@ -32,23 +32,17 @@ def make_decision(
     risk_approved: bool,
     config: DecisionConfig | None = None,
 ) -> DecisionResult:
-    """Convert model probability, EV, and risk status into a decision.
+    """Evaluate probability, expected value, and risk approval.
 
-    This function is deterministic and read-only.
-
-    A decision is approved only when:
-    1. probability is valid and meets the configured threshold;
-    2. expected value is valid and meets the configured threshold;
-    3. the risk engine has approved the decision.
-
-    No order placement or execution is performed.
+    The engine is deterministic and read-only.
+    It does not place orders or execute trades.
     """
     if config is None:
         config = DecisionConfig()
 
     _validate_config(config)
     _validate_probability(probability)
-    _validate_expected_value(expected_value)
+    _validate_finite(expected_value, "expected_value")
 
     if not isinstance(risk_approved, bool):
         raise ValueError("risk_approved must be boolean")
@@ -57,8 +51,8 @@ def make_decision(
         return DecisionResult(
             approved=False,
             reason="probability below minimum threshold",
-            probability=probability,
-            expected_value=expected_value,
+            probability=float(probability),
+            expected_value=float(expected_value),
             risk_approved=risk_approved,
         )
 
@@ -66,8 +60,8 @@ def make_decision(
         return DecisionResult(
             approved=False,
             reason="expected value below minimum threshold",
-            probability=probability,
-            expected_value=expected_value,
+            probability=float(probability),
+            expected_value=float(expected_value),
             risk_approved=risk_approved,
         )
 
@@ -75,16 +69,16 @@ def make_decision(
         return DecisionResult(
             approved=False,
             reason="risk engine rejected decision",
-            probability=probability,
-            expected_value=expected_value,
+            probability=float(probability),
+            expected_value=float(expected_value),
             risk_approved=False,
         )
 
     return DecisionResult(
         approved=True,
         reason="decision criteria passed",
-        probability=probability,
-        expected_value=expected_value,
+        probability=float(probability),
+        expected_value=float(expected_value),
         risk_approved=True,
     )
 
@@ -99,11 +93,6 @@ def _validate_config(config: DecisionConfig) -> None:
         name="min_expected_value",
     )
 
-    if not 0.0 <= config.min_probability <= 1.0:
-        raise ValueError(
-            "min_probability must be between 0 and 1"
-        )
-
 
 def _validate_probability(
     value: float,
@@ -115,12 +104,6 @@ def _validate_probability(
         raise ValueError(
             f"{name} must be between 0 and 1"
         )
-
-
-def _validate_expected_value(
-    value: float,
-) -> None:
-    _validate_finite(value, "expected_value")
 
 
 def _validate_finite(
