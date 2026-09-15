@@ -6,7 +6,10 @@ from dataclasses import dataclass
 import math
 
 from src.models.advanced import AdvancedModelResult
-from src.research.conditional import ConditionalEvaluationResult
+from src.research.conditional import (
+    ConditionalEvaluationResult,
+    ConditionalPerformance,
+)
 from src.research.edge_validation import EdgeValidationResult
 from src.research.order_flow import OrderFlowResult
 from src.research.regime import RegimeResult
@@ -26,7 +29,7 @@ class Phase12ValidationResult:
     passed: bool
 
 
-def validate_phase12(
+def validate_phase12_stack(
     *,
     regime: RegimeResult,
     regime_features: RegimeFeatures,
@@ -37,9 +40,11 @@ def validate_phase12(
 ) -> Phase12ValidationResult:
     """Validate the complete Phase 12 research stack.
 
-    This function validates object contracts and numerical integrity only.
-    It does not claim that a market edge is profitable or statistically
-    significant.
+    This validates object types, numerical ranges, and structural
+    integrity only.
+
+    It does not claim that a market edge is profitable or
+    statistically significant.
     """
     regime_valid = _validate_regime(regime)
     regime_features_valid = _validate_regime_features(regime_features)
@@ -77,17 +82,30 @@ def _validate_regime(result: RegimeResult) -> bool:
     if not isinstance(result.regime, str) or not result.regime:
         raise ValueError("regime.regime must be a non-empty string")
 
-    _validate_finite(result.trend_strength, "regime.trend_strength")
-    _validate_finite(result.volatility, "regime.volatility")
-    _validate_finite(result.return_mean, "regime.return_mean")
+    _validate_finite(
+        result.trend_strength,
+        "regime.trend_strength",
+    )
+    _validate_finite(
+        result.volatility,
+        "regime.volatility",
+    )
+    _validate_finite(
+        result.return_mean,
+        "regime.return_mean",
+    )
 
     if result.trend_strength < 0.0:
-        raise ValueError("regime.trend_strength must be non-negative")
+        raise ValueError(
+            "regime.trend_strength must be non-negative"
+        )
 
     if result.volatility < 0.0:
-        raise ValueError("regime.volatility must be non-negative")
+        raise ValueError(
+            "regime.volatility must be non-negative"
+        )
 
-    _validate_non_negative_integer(
+    _validate_positive_integer(
         result.observations,
         "regime.observations",
     )
@@ -200,14 +218,10 @@ def _validate_conditional(
         "conditional.total_observations",
     )
 
-    for name in (
-        "overall_mean_forward_return",
-        "overall_positive_rate",
-    ):
-        _validate_finite(
-            getattr(result, name),
-            f"conditional.{name}",
-        )
+    _validate_finite(
+        result.overall_mean_forward_return,
+        "conditional.overall_mean_forward_return",
+    )
 
     _validate_probability(
         result.overall_positive_rate,
@@ -232,9 +246,9 @@ def _validate_conditional(
     for name in performance_fields:
         performance = getattr(result, name)
 
-        if not hasattr(performance, "observations"):
+        if not isinstance(performance, ConditionalPerformance):
             raise ValueError(
-                f"conditional.{name} is invalid"
+                f"conditional.{name} must be a ConditionalPerformance"
             )
 
         _validate_non_negative_integer(
@@ -293,14 +307,15 @@ def _validate_edge_validation(
         "edge_validation.baseline_positive_rate",
     )
 
-    if result.minimum_observations <= 0:
-        raise ValueError(
-            "edge_validation.minimum_observations must be positive"
-        )
+    _validate_positive_integer(
+        result.minimum_observations,
+        "edge_validation.minimum_observations",
+    )
 
     if result.minimum_mean_uplift < 0.0:
         raise ValueError(
-            "edge_validation.minimum_mean_uplift must be non-negative"
+            "edge_validation.minimum_mean_uplift "
+            "must be non-negative"
         )
 
     if result.minimum_positive_rate_uplift < 0.0:
@@ -346,16 +361,25 @@ def _validate_advanced_model(
             f"advanced_model.{name}",
         )
 
-    for name in (
-        "candidate_mean_probability",
-        "baseline_mean_probability",
-        "candidate_accuracy",
-        "baseline_accuracy",
-    ):
-        _validate_probability(
-            getattr(result, name),
-            f"advanced_model.{name}",
-        )
+    _validate_probability(
+        result.candidate_mean_probability,
+        "advanced_model.candidate_mean_probability",
+    )
+
+    _validate_probability(
+        result.baseline_mean_probability,
+        "advanced_model.baseline_mean_probability",
+    )
+
+    _validate_probability(
+        result.candidate_accuracy,
+        "advanced_model.candidate_accuracy",
+    )
+
+    _validate_probability(
+        result.baseline_accuracy,
+        "advanced_model.baseline_accuracy",
+    )
 
     if result.candidate_brier_score < 0.0:
         raise ValueError(
@@ -406,7 +430,26 @@ def _validate_non_negative_integer(
     name: str,
 ) -> None:
     if isinstance(value, bool) or not isinstance(value, int):
-        raise ValueError(f"{name} must be a non-negative integer")
+        raise ValueError(
+            f"{name} must be a non-negative integer"
+        )
 
     if value < 0:
-        raise ValueError(f"{name} must be a non-negative integer")
+        raise ValueError(
+            f"{name} must be a non-negative integer"
+        )
+
+
+def _validate_positive_integer(
+    value: object,
+    name: str,
+) -> None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(
+            f"{name} must be a positive integer"
+        )
+
+    if value <= 0:
+        raise ValueError(
+            f"{name} must be a positive integer"
+        )
