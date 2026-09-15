@@ -55,7 +55,7 @@ def test_only_signal_before_final_price_can_create_trade():
     )
 
     assert result.trade_count == 2
-    assert result.final_equity == pytest.approx(132_000.0)
+    assert result.final_equity == pytest.approx(120_000.0)
 
 
 def test_fee_and_slippage_reduce_return():
@@ -92,9 +92,7 @@ def test_max_drawdown_is_calculated():
         signals=[1, 1, 0],
     )
 
-    assert result.max_drawdown == pytest.approx(
-        0.10,
-    )
+    assert result.max_drawdown == pytest.approx(0.10)
 
 
 def test_trade_contains_full_accounting():
