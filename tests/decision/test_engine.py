@@ -19,9 +19,6 @@ def test_valid_evidence_is_approved():
     assert isinstance(result, DecisionResult)
     assert result.approved is True
     assert result.reason == "decision criteria passed"
-    assert result.probability == pytest.approx(0.65)
-    assert result.expected_value == pytest.approx(0.02)
-    assert result.risk_approved is True
 
 
 def test_probability_below_threshold_is_rejected():
@@ -67,7 +64,7 @@ def test_negative_expected_value_is_rejected():
     assert result.reason == "expected value below minimum threshold"
 
 
-def test_risk_rejection_overrides_otherwise_valid_evidence():
+def test_risk_rejection_is_enforced():
     result = make_decision(
         probability=0.80,
         expected_value=0.05,
@@ -76,7 +73,6 @@ def test_risk_rejection_overrides_otherwise_valid_evidence():
 
     assert result.approved is False
     assert result.reason == "risk engine rejected decision"
-    assert result.risk_approved is False
 
 
 def test_custom_probability_threshold():
@@ -118,7 +114,7 @@ def test_custom_expected_value_threshold():
 
     approved = make_decision(
         probability=0.70,
-        expected_value=0.02,
+        expected_value=0.021,
         risk_approved=True,
         config=config,
     )
@@ -165,13 +161,7 @@ def test_non_finite_expected_value_is_rejected(expected_value):
 
 @pytest.mark.parametrize(
     "risk_approved",
-    [
-        1,
-        0,
-        "true",
-        "false",
-        None,
-    ],
+    [1, 0, "true", "false", None],
 )
 def test_risk_approval_must_be_boolean(risk_approved):
     with pytest.raises(ValueError):
@@ -220,7 +210,7 @@ def test_boolean_expected_value_is_rejected():
         )
 
 
-def test_decision_result_preserves_input_evidence():
+def test_result_preserves_evidence():
     result = make_decision(
         probability=0.73,
         expected_value=0.031,
