@@ -189,7 +189,7 @@ def test_fails_when_brier_improvement_is_below_threshold() -> None:
 def test_fails_when_accuracy_uplift_is_below_threshold() -> None:
     result = evaluate_advanced_model(
         candidate_probabilities=[0.6, 0.4] * 20,
-        baseline_probabilities=[0.5, 0.5] * 20,
+        baseline_probabilities=[0.6, 0.4] * 20,
         outcomes=[1, 0] * 20,
         minimum_observations=30,
         minimum_accuracy_uplift=0.10,
@@ -288,11 +288,18 @@ def test_probabilities_and_outcomes_must_have_equal_length() -> None:
 def test_invalid_candidate_probabilities_are_rejected(
     bad_values: list[float],
 ) -> None:
+    if not bad_values:
+        baseline = [0.5]
+        outcomes = [1]
+    else:
+        baseline = [0.5] * len(bad_values)
+        outcomes = [1] * len(bad_values)
+
     with pytest.raises(ValueError):
         evaluate_advanced_model(
             candidate_probabilities=bad_values,
-            baseline_probabilities=[0.5] * len(bad_values),
-            outcomes=[1] * len(bad_values),
+            baseline_probabilities=baseline,
+            outcomes=outcomes,
         )
 
 
@@ -312,11 +319,18 @@ def test_invalid_candidate_probabilities_are_rejected(
 def test_invalid_baseline_probabilities_are_rejected(
     bad_values: list[float],
 ) -> None:
+    if not bad_values:
+        candidate = [0.5]
+        outcomes = [1]
+    else:
+        candidate = [0.5] * len(bad_values)
+        outcomes = [1] * len(bad_values)
+
     with pytest.raises(ValueError):
         evaluate_advanced_model(
-            candidate_probabilities=[0.5] * len(bad_values),
+            candidate_probabilities=candidate,
             baseline_probabilities=bad_values,
-            outcomes=[1] * len(bad_values),
+            outcomes=outcomes,
         )
 
 
@@ -334,10 +348,17 @@ def test_invalid_baseline_probabilities_are_rejected(
 def test_invalid_outcomes_are_rejected(
     bad_values: list[int],
 ) -> None:
+    if not bad_values:
+        candidate = [0.5]
+        baseline = [0.5]
+    else:
+        candidate = [0.5] * len(bad_values)
+        baseline = [0.5] * len(bad_values)
+
     with pytest.raises(ValueError):
         evaluate_advanced_model(
-            candidate_probabilities=[0.5] * max(1, len(bad_values)),
-            baseline_probabilities=[0.5] * max(1, len(bad_values)),
+            candidate_probabilities=candidate,
+            baseline_probabilities=baseline,
             outcomes=bad_values,
         )
 
@@ -391,6 +412,7 @@ def test_invalid_thresholds_are_rejected(
         "minimum_brier_improvement": 0.0,
         "minimum_accuracy_uplift": 0.0,
     }
+
     kwargs[parameter_name] = value
 
     with pytest.raises(ValueError):
