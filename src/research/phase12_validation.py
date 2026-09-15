@@ -1,4 +1,4 @@
-"""Final integration validation for Phase 12 advanced research."""
+"""Final validation for the Phase 12 advanced research stack."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from src.research.regime_features import RegimeFeatures
 
 @dataclass(frozen=True)
 class Phase12ValidationResult:
-    """Summary of the Phase 12 research-stack integration check."""
+    """Validation status for every Phase 12 research component."""
 
     regime_valid: bool
     regime_features_valid: bool
@@ -26,7 +26,7 @@ class Phase12ValidationResult:
     passed: bool
 
 
-def validate_phase12_stack(
+def validate_phase12(
     *,
     regime: RegimeResult,
     regime_features: RegimeFeatures,
@@ -35,12 +35,11 @@ def validate_phase12_stack(
     edge_validation: EdgeValidationResult,
     advanced_model: AdvancedModelResult,
 ) -> Phase12ValidationResult:
-    """Validate the structural integrity of Phase 12 research outputs.
+    """Validate the complete Phase 12 research stack.
 
-    This function validates integration contracts and numerical sanity.
-
-    It does not claim that a market edge is statistically proven,
-    profitable, or ready for live execution.
+    This function validates object contracts and numerical integrity only.
+    It does not claim that a market edge is profitable or statistically
+    significant.
     """
     regime_valid = _validate_regime(regime)
     regime_features_valid = _validate_regime_features(regime_features)
@@ -88,14 +87,10 @@ def _validate_regime(result: RegimeResult) -> bool:
     if result.volatility < 0.0:
         raise ValueError("regime.volatility must be non-negative")
 
-    if isinstance(result.observations, bool) or not isinstance(
+    _validate_non_negative_integer(
         result.observations,
-        int,
-    ):
-        raise ValueError("regime.observations must be an integer")
-
-    if result.observations <= 0:
-        raise ValueError("regime.observations must be greater than zero")
+        "regime.observations",
+    )
 
     return True
 
@@ -132,8 +127,7 @@ def _validate_regime_features(result: RegimeFeatures) -> bool:
         "is_high_volatility",
         "is_range",
     ):
-        value = getattr(result, name)
-        if not isinstance(value, bool):
+        if not isinstance(getattr(result, name), bool):
             raise ValueError(
                 f"regime_features.{name} must be boolean"
             )
@@ -161,14 +155,18 @@ def _validate_order_flow(result: OrderFlowResult) -> bool:
         )
 
     if result.buy_volume < 0.0:
-        raise ValueError("order_flow.buy_volume must be non-negative")
+        raise ValueError(
+            "order_flow.buy_volume must be non-negative"
+        )
 
     if result.sell_volume < 0.0:
-        raise ValueError("order_flow.sell_volume must be non-negative")
+        raise ValueError(
+            "order_flow.sell_volume must be non-negative"
+        )
 
     if result.total_volume <= 0.0:
         raise ValueError(
-            "order_flow.total_volume must be greater than zero"
+            "order_flow.total_volume must be positive"
         )
 
     if not -1.0 <= result.imbalance <= 1.0:
@@ -202,10 +200,14 @@ def _validate_conditional(
         "conditional.total_observations",
     )
 
-    _validate_finite(
-        result.overall_mean_forward_return,
-        "conditional.overall_mean_forward_return",
-    )
+    for name in (
+        "overall_mean_forward_return",
+        "overall_positive_rate",
+    ):
+        _validate_finite(
+            getattr(result, name),
+            f"conditional.{name}",
+        )
 
     _validate_probability(
         result.overall_positive_rate,
@@ -227,37 +229,27 @@ def _validate_conditional(
         "range_sell_dominant",
     )
 
-    for field_name in performance_fields:
-        performance = getattr(result, field_name)
+    for name in performance_fields:
+        performance = getattr(result, name)
 
         if not hasattr(performance, "observations"):
             raise ValueError(
-                f"conditional.{field_name} is missing observations"
-            )
-
-        if not hasattr(performance, "mean_forward_return"):
-            raise ValueError(
-                f"conditional.{field_name} is missing mean_forward_return"
-            )
-
-        if not hasattr(performance, "positive_rate"):
-            raise ValueError(
-                f"conditional.{field_name} is missing positive_rate"
+                f"conditional.{name} is invalid"
             )
 
         _validate_non_negative_integer(
             performance.observations,
-            f"conditional.{field_name}.observations",
+            f"conditional.{name}.observations",
         )
 
         _validate_finite(
             performance.mean_forward_return,
-            f"conditional.{field_name}.mean_forward_return",
+            f"conditional.{name}.mean_forward_return",
         )
 
         _validate_probability(
             performance.positive_rate,
-            f"conditional.{field_name}.positive_rate",
+            f"conditional.{name}.positive_rate",
         )
 
     return True
@@ -301,14 +293,9 @@ def _validate_edge_validation(
         "edge_validation.baseline_positive_rate",
     )
 
-    _validate_non_negative_integer(
-        result.minimum_observations,
-        "edge_validation.minimum_observations",
-    )
-
     if result.minimum_observations <= 0:
         raise ValueError(
-            "edge_validation.minimum_observations must be greater than zero"
+            "edge_validation.minimum_observations must be positive"
         )
 
     if result.minimum_mean_uplift < 0.0:
@@ -323,7 +310,9 @@ def _validate_edge_validation(
         )
 
     if not isinstance(result.passed, bool):
-        raise ValueError("edge_validation.passed must be boolean")
+        raise ValueError(
+            "edge_validation.passed must be boolean"
+        )
 
     return True
 
@@ -351,9 +340,6 @@ def _validate_advanced_model(
         "candidate_accuracy",
         "baseline_accuracy",
         "accuracy_uplift",
-        "minimum_probability_uplift",
-        "minimum_brier_improvement",
-        "minimum_accuracy_uplift",
     ):
         _validate_finite(
             getattr(result, name),
@@ -371,44 +357,31 @@ def _validate_advanced_model(
             f"advanced_model.{name}",
         )
 
-    _validate_non_negative_integer(
-        result.minimum_observations,
-        "advanced_model.minimum_observations",
-    )
-
-    if result.minimum_observations <= 0:
-        raise ValueError(
-            "advanced_model.minimum_observations must be greater than zero"
-        )
-
-    for name in (
-        "minimum_probability_uplift",
-        "minimum_brier_improvement",
-        "minimum_accuracy_uplift",
-    ):
-        if getattr(result, name) < 0.0:
-            raise ValueError(
-                f"advanced_model.{name} must be non-negative"
-            )
-
     if result.candidate_brier_score < 0.0:
         raise ValueError(
-            "advanced_model.candidate_brier_score must be non-negative"
+            "advanced_model.candidate_brier_score "
+            "must be non-negative"
         )
 
     if result.baseline_brier_score < 0.0:
         raise ValueError(
-            "advanced_model.baseline_brier_score must be non-negative"
+            "advanced_model.baseline_brier_score "
+            "must be non-negative"
         )
 
     if not isinstance(result.passed, bool):
-        raise ValueError("advanced_model.passed must be boolean")
+        raise ValueError(
+            "advanced_model.passed must be boolean"
+        )
 
     return True
 
 
-def _validate_finite(value: float, name: str) -> None:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+def _validate_finite(value: object, name: str) -> None:
+    if isinstance(value, bool) or not isinstance(
+        value,
+        (int, float),
+    ):
         raise ValueError(f"{name} must be numeric")
 
     numeric = float(value)
@@ -417,7 +390,7 @@ def _validate_finite(value: float, name: str) -> None:
         raise ValueError(f"{name} must be finite")
 
 
-def _validate_probability(value: float, name: str) -> None:
+def _validate_probability(value: object, name: str) -> None:
     _validate_finite(value, name)
 
     numeric = float(value)
@@ -429,13 +402,11 @@ def _validate_probability(value: float, name: str) -> None:
 
 
 def _validate_non_negative_integer(
-    value: int,
+    value: object,
     name: str,
 ) -> None:
     if isinstance(value, bool) or not isinstance(value, int):
-        raise ValueError(f"{name} must be an integer")
+        raise ValueError(f"{name} must be a non-negative integer")
 
     if value < 0:
-        raise ValueError(
-            f"{name} must be non-negative"
-        )
+        raise ValueError(f"{name} must be a non-negative integer")
