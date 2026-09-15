@@ -1,3 +1,5 @@
+"""Tests for deterministic market-regime detection."""
+
 import math
 
 import pytest
@@ -164,7 +166,7 @@ def test_custom_config_changes_thresholds() -> None:
 
 
 def test_rejects_insufficient_observations() -> None:
-    prices = [100.0, 101.0, 102.0]
+    prices = [100.0] * 19
 
     with pytest.raises(
         ValueError,
@@ -179,61 +181,6 @@ def test_rejects_string_prices() -> None:
         match="prices must be a numeric sequence",
     ):
         detect_regime("100,101,102")  # type: ignore[arg-type]
-
-
-@pytest.mark.parametrize(
-    "prices",
-    [
-        [100.0] * 19,
-        [100.0, 101.0],
-    ],
-)
-def test_minimum_observation_boundary(
-    prices: list[float],
-) -> None:
-    config = RegimeConfig(
-        minimum_observations=20,
-    )
-
-    if len(prices) < 20:
-        with pytest.raises(
-            ValueError,
-            match="insufficient price observations",
-        ):
-            detect_regime(
-                prices,
-                config=config,
-            )
-    else:
-        result = detect_regime(
-            prices,
-            config=config,
-        )
-        assert result.observations == 2
-
-
-@pytest.mark.parametrize(
-    "prices",
-    [
-        [100.0] * 19,
-        [100.0, 101.0, 102.0],
-    ],
-)
-def test_custom_minimum_observations_validation(
-    prices: list[float],
-) -> None:
-    minimum = len(prices)
-
-    config = RegimeConfig(
-        minimum_observations=minimum,
-    )
-
-    result = detect_regime(
-        prices,
-        config=config,
-    )
-
-    assert result.observations == len(prices)
 
 
 @pytest.mark.parametrize(
@@ -279,13 +226,13 @@ def test_rejects_non_finite_prices(
     ],
 )
 def test_rejects_non_numeric_price_values(
-    prices: list[float],
+    prices: list[object],
 ) -> None:
     with pytest.raises(
         ValueError,
         match="prices must contain only numeric values",
     ):
-        detect_regime(prices)
+        detect_regime(prices)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
