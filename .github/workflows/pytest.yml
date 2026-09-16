@@ -22,3 +22,8 @@ jobs:
         run: python -m pytest -q tests/production/test_snapshot_bridge.py tests/production/test_command_center_contract.py tests/integration/test_phase13_phase14_final_gate.py tests/research/test_final_validation.py
       - name: Run full regression
         run: python -m pytest -q
+      - name: Run real Binance market-data integration evidence
+        continue-on-error: true
+        env:
+          RUN_REAL_DATA_INTEGRATION: "1"
+        run: python -m pytest -q tests/integration/test_binance_live.py
