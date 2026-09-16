@@ -18,8 +18,8 @@ jobs:
           python-version: "3.12"
       - name: Install test dependencies
         run: python -m pip install -r requirements.txt pytest
-      - name: Run targeted bridge and final-gate tests
-        run: python -m pytest -q tests/production/test_snapshot_bridge.py tests/production/test_command_center_contract.py tests/integration/test_phase13_phase14_final_gate.py tests/research/test_final_validation.py
+      - name: Run targeted bridge, runtime, and final-gate tests
+        run: python -m pytest -q tests/production/test_snapshot_bridge.py tests/production/test_command_center_contract.py tests/production/test_runtime.py tests/integration/test_phase13_phase14_final_gate.py tests/research/test_final_validation.py
       - name: Run full regression
         run: python -m pytest -q
       - name: Run real Binance market-data integration evidence
@@ -27,3 +27,8 @@ jobs:
         env:
           RUN_REAL_DATA_INTEGRATION: "1"
         run: python -m pytest -q tests/integration/test_binance_live.py
+      - name: Run real Binance runtime-to-snapshot integration evidence
+        continue-on-error: true
+        env:
+          RUN_REAL_DATA_INTEGRATION: "1"
+        run: python -m pytest -q tests/integration/test_runtime_live.py
