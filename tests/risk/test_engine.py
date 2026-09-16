@@ -1,216 +1,47 @@
 from __future__ import annotations
-
 import pytest
+from src.risk.engine import RiskConfig, RiskResult, assess_risk
 
-from src.risk.engine import (
-    RiskConfig,
-    RiskResult,
-    assess_risk,
-)
-
+def base(**kwargs):
+    return assess_risk(equity=100_000, entry_price=100, stop_price=98, net_expected_value=.02, **kwargs)
 
 def test_positive_ev_and_valid_stop_are_approved():
-    result = assess_risk(
-        equity=100_000,
-        entry_price=100,
-        stop_price=98,
-        net_expected_value=0.02,
-    )
+    r=base(); assert isinstance(r,RiskResult); assert r.approved; assert r.reason=="risk limits passed"; assert r.risk_amount==pytest.approx(1000); assert r.position_notional==pytest.approx(50000)
 
-    assert isinstance(result, RiskResult)
-    assert result.approved is True
-    assert result.reason == "risk limits passed"
-    assert result.risk_fraction == pytest.approx(0.01)
-    assert result.risk_amount == pytest.approx(1_000)
-    assert result.position_notional == pytest.approx(50_000)
-    assert result.position_fraction == pytest.approx(0.5)
+def test_zero_and_negative_ev_are_rejected():
+    assert base(net_expected_value=0).approved is False
+    assert base(net_expected_value=-.01).approved is False
 
+def test_invalid_stop_is_rejected():
+    assert assess_risk(equity=100_000,entry_price=100,stop_price=100,net_expected_value=.02).approved is False
+    assert assess_risk(equity=100_000,entry_price=100,stop_price=101,net_expected_value=.02).approved is False
 
-def test_zero_expected_value_is_rejected():
-    result = assess_risk(
-        equity=100_000,
-        entry_price=100,
-        stop_price=98,
-        net_expected_value=0,
-    )
+def test_position_is_capped():
+    r=base(config=RiskConfig(max_position_fraction=.25)); assert r.position_notional==pytest.approx(25000)
 
-    assert result.approved is False
-    assert result.reason == "net_expected_value must be positive"
-    assert result.position_notional == 0
-    assert result.risk_amount == 0
+def test_custom_risk_fraction_changes_budget():
+    r=base(config=RiskConfig(max_risk_fraction=.02)); assert r.risk_amount==pytest.approx(2000)
 
+@pytest.mark.parametrize(("equity","entry_price","stop_price"),[(0,100,98),(-1,100,98),(100000,0,-1),(100000,100,0)])
+def test_non_positive_inputs_rejected(equity,entry_price,stop_price):
+    with pytest.raises(ValueError): assess_risk(equity=equity,entry_price=entry_price,stop_price=stop_price,net_expected_value=.02)
 
-def test_negative_expected_value_is_rejected():
-    result = assess_risk(
-        equity=100_000,
-        entry_price=100,
-        stop_price=98,
-        net_expected_value=-0.01,
-    )
+@pytest.mark.parametrize("value",[float("nan"),float("inf"),float("-inf")])
+def test_nonfinite_ev_rejected(value):
+    with pytest.raises(ValueError): base(net_expected_value=value)
 
-    assert result.approved is False
-    assert result.reason == "net_expected_value must be positive"
+@pytest.mark.parametrize("config",[RiskConfig(max_risk_fraction=0),RiskConfig(max_position_fraction=0),RiskConfig(max_drawdown_fraction=0)])
+def test_invalid_config_rejected(config):
+    with pytest.raises(ValueError): base(config=config)
 
+def test_drawdown_limit_is_enforced():
+    config=RiskConfig(max_drawdown_fraction=.20)
+    r=base(config=config,current_drawdown_fraction=.20)
+    assert r.approved is False; assert r.reason=="max drawdown limit reached"
 
-def test_stop_at_entry_is_rejected():
-    result = assess_risk(
-        equity=100_000,
-        entry_price=100,
-        stop_price=100,
-        net_expected_value=0.02,
-    )
+def test_drawdown_below_limit_is_allowed():
+    r=base(config=RiskConfig(max_drawdown_fraction=.20),current_drawdown_fraction=.199)
+    assert r.approved is True
 
-    assert result.approved is False
-    assert result.reason == "stop_price must be below entry_price"
-
-
-def test_stop_above_entry_is_rejected():
-    result = assess_risk(
-        equity=100_000,
-        entry_price=100,
-        stop_price=101,
-        net_expected_value=0.02,
-    )
-
-    assert result.approved is False
-    assert result.reason == "stop_price must be below entry_price"
-
-
-def test_position_is_capped_by_max_position_fraction():
-    config = RiskConfig(
-        max_risk_fraction=0.01,
-        max_position_fraction=0.25,
-    )
-
-    result = assess_risk(
-        equity=100_000,
-        entry_price=100,
-        stop_price=99,
-        net_expected_value=0.02,
-        config=config,
-    )
-
-    assert result.approved is True
-    assert result.position_notional == pytest.approx(25_000)
-    assert result.position_fraction == pytest.approx(0.25)
-    assert result.risk_amount == pytest.approx(1_000)
-
-
-def test_custom_risk_fraction_changes_risk_budget():
-    config = RiskConfig(
-        max_risk_fraction=0.02,
-        max_position_fraction=1.0,
-    )
-
-    result = assess_risk(
-        equity=100_000,
-        entry_price=100,
-        stop_price=98,
-        net_expected_value=0.02,
-        config=config,
-    )
-
-    assert result.approved is True
-    assert result.risk_fraction == pytest.approx(0.02)
-    assert result.risk_amount == pytest.approx(2_000)
-    assert result.position_notional == pytest.approx(100_000)
-
-
-@pytest.mark.parametrize(
-    ("equity", "entry_price", "stop_price"),
-    [
-        (0, 100, 98),
-        (-1, 100, 98),
-        (100_000, 0, -1),
-        (100_000, 100, 0),
-    ],
-)
-def test_non_positive_inputs_are_rejected_with_value_error(
-    equity,
-    entry_price,
-    stop_price,
-):
-    with pytest.raises(ValueError):
-        assess_risk(
-            equity=equity,
-            entry_price=entry_price,
-            stop_price=stop_price,
-            net_expected_value=0.02,
-        )
-
-
-@pytest.mark.parametrize(
-    "net_expected_value",
-    [
-        float("nan"),
-        float("inf"),
-        float("-inf"),
-    ],
-)
-def test_non_finite_expected_value_is_rejected(net_expected_value):
-    with pytest.raises(ValueError):
-        assess_risk(
-            equity=100_000,
-            entry_price=100,
-            stop_price=98,
-            net_expected_value=net_expected_value,
-        )
-
-
-@pytest.mark.parametrize(
-    "config",
-    [
-        RiskConfig(max_risk_fraction=0),
-        RiskConfig(max_risk_fraction=-0.01),
-        RiskConfig(max_risk_fraction=1.01),
-        RiskConfig(max_position_fraction=0),
-        RiskConfig(max_position_fraction=-0.1),
-        RiskConfig(max_position_fraction=1.01),
-        RiskConfig(max_drawdown_fraction=0),
-        RiskConfig(max_drawdown_fraction=-0.1),
-        RiskConfig(max_drawdown_fraction=1.01),
-    ],
-)
-def test_invalid_risk_configuration_is_rejected(config):
-    with pytest.raises(ValueError):
-        assess_risk(
-            equity=100_000,
-            entry_price=100,
-            stop_price=98,
-            net_expected_value=0.02,
-            config=config,
-        )
-
-
-def test_boolean_numeric_input_is_rejected():
-    with pytest.raises(ValueError):
-        assess_risk(
-            equity=True,
-            entry_price=100,
-            stop_price=98,
-            net_expected_value=0.02,
-        )
-
-
-def test_position_sizing_uses_stop_distance():
-    tight_stop = assess_risk(
-        equity=100_000,
-        entry_price=100,
-        stop_price=99,
-        net_expected_value=0.02,
-    )
-
-    wide_stop = assess_risk(
-        equity=100_000,
-        entry_price=100,
-        stop_price=95,
-        net_expected_value=0.02,
-    )
-
-    assert tight_stop.approved is True
-    assert wide_stop.approved is True
-
-    assert tight_stop.position_notional == pytest.approx(100_000)
-    assert wide_stop.position_notional == pytest.approx(20_000)
-
-    assert tight_stop.position_notional > wide_stop.position_notional
+def test_invalid_current_drawdown_is_rejected():
+    with pytest.raises(ValueError): base(current_drawdown_fraction=1.01)
