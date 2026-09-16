@@ -1,0 +1,63 @@
+"""Unit tests for runtime lifecycle behavior without market-data fixtures."""
+
+from __future__ import annotations
+
+import threading
+import urllib.request
+
+from src.production.runtime import ProductionSnapshotRuntime, RuntimeConfig
+
+
+def test_runtime_starts_with_explicit_offline_state() -> None:
+    runtime = ProductionSnapshotRuntime(
+        RuntimeConfig(
+            lookback_candles=40,
+            host="127.0.0.1",
+            port=0,
+        )
+    )
+
+    snapshot = runtime.state.get()
+
+    assert snapshot.status == "ERROR"
+    assert snapshot.market_data["status"] == "OFFLINE"
+    assert snapshot.probability is None
+    assert snapshot.risk == {"status": "UNAVAILABLE"}
+    assert snapshot.decision is None
+    assert snapshot.validation_status == "INSUFFICIENT_EVIDENCE"
+
+
+def test_runtime_http_serves_current_state_without_fabrication() -> None:
+    runtime = ProductionSnapshotRuntime(
+        RuntimeConfig(
+            lookback_candles=40,
+            host="127.0.0.1",
+            port=0,
+        )
+    )
+    server = runtime._server = __import__(
+        "src.production.snapshot_http",
+        fromlist=["create_snapshot_server"],
+    ).create_snapshot_server(
+        "127.0.0.1",
+        0,
+        runtime.state.get,
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address
+        with urllib.request.urlopen(
+            f"http://{host}:{port}/snapshot",
+            timeout=5,
+        ) as response:
+            assert response.status == 200
+            body = response.read().decode("utf-8")
+
+        assert '"status":"ERROR"' in body
+        assert '"status":"OFFLINE"' in body
+        assert '"probability":null' in body
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
