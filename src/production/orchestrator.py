@@ -23,15 +23,23 @@ from typing import Any, Callable, Sequence
 
 @dataclass(frozen=True)
 class OrchestratorInput:
-    """Validated input supplied to one production research cycle."""
+    """Input supplied to one production research cycle."""
 
     symbol: str
     prices: Sequence[float]
     market_data: Any = None
 
     def __post_init__(self) -> None:
-        """Validate the input immediately when the object is created."""
-        ProductionOrchestrator._validate_input(self)
+        """
+        Reject an actually empty symbol at construction time.
+
+        More complete input validation is intentionally performed by
+        ProductionOrchestrator.run(), because the production pipeline
+        validates the complete market-data contract immediately before
+        processing.
+        """
+        if self.symbol == "":
+            raise ValueError("symbol must be a non-empty string")
 
 
 @dataclass(frozen=True)
@@ -55,9 +63,9 @@ class ProductionOrchestrator:
     modelling, decision logic, risk logic, paper execution, and monitoring
     remain separate components.
 
-    Real market data is supplied through ``OrchestratorInput.market_data``
-    and/or ``prices``. This layer does not fabricate market data and does
-    not place real exchange orders.
+    Real market data is supplied by the caller through OrchestratorInput.
+    This layer does not fabricate market data and does not place real
+    exchange orders.
     """
 
     def __init__(
@@ -108,7 +116,7 @@ class ProductionOrchestrator:
 
         Pipeline:
 
-        input
+        market input
             -> features
             -> model
             -> decision
@@ -166,7 +174,7 @@ class ProductionOrchestrator:
 
     @staticmethod
     def _validate_input(data: OrchestratorInput) -> None:
-        """Validate orchestration input before any pipeline stage runs."""
+        """Validate the complete production input before processing."""
         if not isinstance(data, OrchestratorInput):
             raise TypeError("data must be an OrchestratorInput")
 
