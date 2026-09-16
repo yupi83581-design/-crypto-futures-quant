@@ -43,10 +43,7 @@ def test_snapshot_aggregates_existing_results_without_recalculation():
 
 
 def test_missing_domains_are_unavailable_and_not_zero():
-    snapshot = build_command_center_snapshot(
-        symbol="BTCUSDT",
-        status="NO_TRADE",
-    )
+    snapshot = build_command_center_snapshot(symbol="BTCUSDT", status="NO_TRADE")
 
     assert snapshot.probability is None
     assert snapshot.calibration == {"status": "UNAVAILABLE"}
@@ -79,10 +76,7 @@ def test_inference_observations_can_feed_market_payload_without_calculation():
 
 def test_incomplete_orchestrator_result_is_rejected():
     with pytest.raises(ValueError, match="incomplete orchestrator result"):
-        build_from_orchestrator_result(
-            object(),
-            status="NO_TRADE",
-        )
+        build_from_orchestrator_result(object(), status="NO_TRADE")
 
 
 def test_orchestrator_result_fields_are_mapped_directly():
@@ -94,10 +88,7 @@ def test_orchestrator_result_fields_are_mapped_directly():
         paper_result = {"equity": 99.0}
         monitoring_result = {"status": "OK"}
 
-    snapshot = build_from_orchestrator_result(
-        Result(),
-        status="NO_TRADE",
-    )
+    snapshot = build_from_orchestrator_result(Result(), status="NO_TRADE")
 
     assert snapshot.symbol == "BTCUSDT"
     assert snapshot.probability == 0.81
@@ -117,9 +108,11 @@ def test_real_orchestrator_result_flows_into_snapshot_bridge():
     )
     risk = RiskResult(
         approved=True,
-        reason="risk checks passed",
+        reason="risk limits passed",
         risk_fraction=0.01,
-        drawdown_state="NORMAL",
+        position_fraction=0.10,
+        risk_amount=1.0,
+        position_notional=10.0,
     )
 
     orchestrator = ProductionOrchestrator(
@@ -199,10 +192,7 @@ def test_get_snapshot_returns_contract_json():
 
 
 def test_get_snapshot_is_read_only():
-    snapshot = build_command_center_snapshot(
-        symbol="BTCUSDT",
-        status="READY",
-    )
+    snapshot = build_command_center_snapshot(symbol="BTCUSDT", status="READY")
     server = create_snapshot_server("127.0.0.1", 0, lambda: snapshot)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -222,10 +212,7 @@ def test_get_snapshot_is_read_only():
 
 
 def test_unknown_path_returns_404():
-    snapshot = build_command_center_snapshot(
-        symbol="BTCUSDT",
-        status="READY",
-    )
+    snapshot = build_command_center_snapshot(symbol="BTCUSDT", status="READY")
     server = create_snapshot_server("127.0.0.1", 0, lambda: snapshot)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
