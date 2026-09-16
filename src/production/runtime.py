@@ -16,7 +16,6 @@ from __future__ import annotations
 import logging
 import os
 import threading
-import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Sequence
@@ -24,10 +23,10 @@ from typing import Any, Callable, Sequence
 from src.data.collector.adapter import BinancePublicMarketDataAdapter, MarketDataError
 from src.features.rsi import compute_rsi
 from src.models.baseline_pipeline import BaselineRSIPipeline
+from src.production.command_center_contract import QuantCommandCenterSnapshot
 from src.production.inference import InferenceInput, InferenceResult, ProductionInferenceEngine
 from src.production.snapshot_bridge import build_command_center_snapshot
 from src.production.snapshot_http import create_snapshot_server
-from src.production.command_center_contract import QuantCommandCenterSnapshot
 
 LOGGER = logging.getLogger(__name__)
 
@@ -71,8 +70,8 @@ class RuntimeConfig:
             raise ValueError("QUANT_TRAINING_FRACTION must be >= 0.5 and < 1")
         if self.refresh_seconds <= 0:
             raise ValueError("QUANT_REFRESH_SECONDS must be > 0")
-        if not 1 <= self.port <= 65535:
-            raise ValueError("QUANT_SNAPSHOT_PORT must be a valid TCP port")
+        if not 0 <= self.port <= 65535:
+            raise ValueError("QUANT_SNAPSHOT_PORT must be between 0 and 65535")
 
 
 class RuntimeState:
@@ -229,10 +228,11 @@ class ProductionSnapshotRuntime:
             daemon=True,
         )
         worker.start()
+        actual_host, actual_port = self._server.server_address
         LOGGER.info(
             "snapshot runtime listening on http://%s:%s/snapshot",
-            self.config.host,
-            self.config.port,
+            actual_host,
+            actual_port,
         )
         try:
             self._server.serve_forever(poll_interval=0.5)
