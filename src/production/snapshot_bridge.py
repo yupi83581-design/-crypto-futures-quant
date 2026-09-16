@@ -58,8 +58,8 @@ def build_command_center_snapshot(
     This function deliberately performs no quant calculations. Missing domains
     remain explicitly unavailable instead of being represented as numeric zeroes.
     """
-    market_payload = _payload(market_data)
     if market_data is None and inference is not None:
+        market_payload: dict[str, Any] = {}
         observations = _value_or_none(inference, "observations")
         usable = _value_or_none(inference, "usable_observations")
         timeframe = _value_or_none(inference, "timeframe")
@@ -71,6 +71,8 @@ def build_command_center_snapshot(
             market_payload["timeframe"] = timeframe
         if not market_payload:
             market_payload = dict(_UNAVAILABLE)
+    else:
+        market_payload = _payload(market_data)
 
     probability = _value_or_none(inference, "probability")
     decision_value = None
