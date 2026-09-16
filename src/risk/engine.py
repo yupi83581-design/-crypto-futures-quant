@@ -33,27 +33,15 @@ def assess_risk(
     entry_price: float,
     stop_price: float,
     net_expected_value: float,
+    current_drawdown_fraction: float = 0.0,
     config: RiskConfig | None = None,
 ) -> RiskResult:
-    """Assess whether a decision passes deterministic risk controls.
+    """Assess deterministic risk controls, including drawdown enforcement.
 
-    The function does not place orders and does not use leverage.
-
-    Position sizing is based on the maximum amount of equity that may
-    be lost if the stop is reached:
-
-        risk_amount = equity * max_risk_fraction
-
-        position_notional =
-            risk_amount / stop_distance_fraction
-
-    The resulting position is capped by max_position_fraction.
-
-    A decision is rejected when:
-    - inputs are invalid;
-    - the stop is not below entry;
-    - net expected value is not positive;
-    - configured risk limits are invalid.
+    ``current_drawdown_fraction`` is measured from the relevant equity peak
+    and must be supplied by the caller from the current portfolio/equity
+    state. A decision is rejected once it reaches the configured drawdown
+    limit. This function is research/paper-only and never places orders.
     """
     if config is None:
         config = RiskConfig()
@@ -63,136 +51,63 @@ def assess_risk(
     _validate_positive(entry_price, "entry_price")
     _validate_positive(stop_price, "stop_price")
     _validate_finite(net_expected_value, "net_expected_value")
+    _validate_fraction(current_drawdown_fraction, "current_drawdown_fraction")
+
+    if current_drawdown_fraction >= config.max_drawdown_fraction:
+        return RiskResult(False, "max drawdown limit reached", 0.0, 0.0, 0.0, 0.0)
 
     if stop_price >= entry_price:
-        return RiskResult(
-            approved=False,
-            reason="stop_price must be below entry_price",
-            risk_fraction=0.0,
-            position_fraction=0.0,
-            risk_amount=0.0,
-            position_notional=0.0,
-        )
+        return RiskResult(False, "stop_price must be below entry_price", 0.0, 0.0, 0.0, 0.0)
 
     if net_expected_value <= 0.0:
-        return RiskResult(
-            approved=False,
-            reason="net_expected_value must be positive",
-            risk_fraction=0.0,
-            position_fraction=0.0,
-            risk_amount=0.0,
-            position_notional=0.0,
-        )
+        return RiskResult(False, "net_expected_value must be positive", 0.0, 0.0, 0.0, 0.0)
 
-    stop_distance_fraction = (
-        (entry_price - stop_price) / entry_price
-    )
-
+    stop_distance_fraction = (entry_price - stop_price) / entry_price
     if stop_distance_fraction <= 0.0:
-        return RiskResult(
-            approved=False,
-            reason="stop distance must be positive",
-            risk_fraction=0.0,
-            position_fraction=0.0,
-            risk_amount=0.0,
-            position_notional=0.0,
-        )
+        return RiskResult(False, "stop distance must be positive", 0.0, 0.0, 0.0, 0.0)
 
     risk_fraction = config.max_risk_fraction
     risk_amount = equity * risk_fraction
-
-    position_notional = (
-        risk_amount / stop_distance_fraction
-    )
-
-    maximum_notional = (
-        equity * config.max_position_fraction
-    )
-
     position_notional = min(
-        position_notional,
-        maximum_notional,
+        risk_amount / stop_distance_fraction,
+        equity * config.max_position_fraction,
     )
-
-    position_fraction = position_notional / equity
-
     return RiskResult(
-        approved=True,
-        reason="risk limits passed",
-        risk_fraction=risk_fraction,
-        position_fraction=position_fraction,
-        risk_amount=risk_amount,
-        position_notional=position_notional,
+        True,
+        "risk limits passed",
+        risk_fraction,
+        position_notional / equity,
+        risk_amount,
+        position_notional,
     )
 
 
 def _validate_config(config: RiskConfig) -> None:
-    _validate_fraction(
-        config.max_risk_fraction,
-        "max_risk_fraction",
-    )
-    _validate_fraction(
-        config.max_position_fraction,
-        "max_position_fraction",
-    )
-    _validate_fraction(
-        config.max_drawdown_fraction,
-        "max_drawdown_fraction",
-    )
-
+    _validate_fraction(config.max_risk_fraction, "max_risk_fraction")
+    _validate_fraction(config.max_position_fraction, "max_position_fraction")
+    _validate_fraction(config.max_drawdown_fraction, "max_drawdown_fraction")
     if config.max_risk_fraction <= 0.0:
-        raise ValueError(
-            "max_risk_fraction must be positive"
-        )
-
+        raise ValueError("max_risk_fraction must be positive")
     if config.max_position_fraction <= 0.0:
-        raise ValueError(
-            "max_position_fraction must be positive"
-        )
-
+        raise ValueError("max_position_fraction must be positive")
     if config.max_drawdown_fraction <= 0.0:
-        raise ValueError(
-            "max_drawdown_fraction must be positive"
-        )
+        raise ValueError("max_drawdown_fraction must be positive")
 
 
-def _validate_positive(
-    value: float,
-    name: str,
-) -> None:
+def _validate_positive(value: float, name: str) -> None:
     _validate_finite(value, name)
-
     if float(value) <= 0.0:
-        raise ValueError(
-            f"{name} must be positive"
-        )
+        raise ValueError(f"{name} must be positive")
 
 
-def _validate_finite(
-    value: float,
-    name: str,
-) -> None:
-    if isinstance(value, bool) or not isinstance(
-        value,
-        (int, float),
-    ):
-        raise ValueError(
-            f"{name} must be numeric"
-        )
-
+def _validate_finite(value: float, name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{name} must be numeric")
     if not math.isfinite(float(value)):
-        raise ValueError(
-            f"{name} must be finite"
-        )
+        raise ValueError(f"{name} must be finite")
 
 
-def _validate_fraction(
-    value: float,
-    name: str,
-) -> None:
+def _validate_fraction(value: float, name: str) -> None:
     _validate_finite(value, name)
-
     if not 0.0 <= float(value) <= 1.0:
-        raise ValueError(
-            f"{name} must be between 0 and 1"
-        )
+        raise ValueError(f"{name} must be between 0 and 1")
