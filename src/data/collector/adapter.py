@@ -207,20 +207,18 @@ class BinancePublicMarketDataAdapter(
             page_open_times: list[int] = []
 
             for raw_kline in payload:
-                if self._is_incomplete_kline(
-                    raw_kline=raw_kline,
-                    interval_ms=interval_ms,
-                    ingestion_time=ingestion_time,
-                ):
-                    continue
-
-                record, open_time_ms = self._canonical_record(
+                canonical = self._canonical_record(
                     raw_kline=raw_kline,
                     symbol=normalized_symbol,
                     timeframe=timeframe,
                     interval_ms=interval_ms,
                     ingestion_time=ingestion_time,
                 )
+
+                if canonical is None:
+                    continue
+
+                record, open_time_ms = canonical
 
                 if open_time_ms < start_ms:
                     continue
@@ -286,43 +284,6 @@ class BinancePublicMarketDataAdapter(
 
         return records
 
-    def _is_incomplete_kline(
-        self,
-        *,
-        raw_kline: Any,
-        interval_ms: int,
-        ingestion_time: datetime,
-    ) -> bool:
-        """Return True for a validly timestamped candle that is still forming."""
-        if not isinstance(raw_kline, list):
-            return False
-
-        if len(raw_kline) < 6:
-            return False
-
-        open_time_ms = self._parse_integer(
-            raw_kline[0],
-            "kline open time",
-        )
-
-        close_time_ms = self._parse_integer(
-            raw_kline[6],
-            "kline close time",
-        ) if len(raw_kline) > 6 else open_time_ms + interval_ms - 1
-
-        if close_time_ms < open_time_ms:
-            return False
-
-        expected_close_time_ms = open_time_ms + interval_ms - 1
-
-        if close_time_ms != expected_close_time_ms:
-            return False
-
-        close_time = self._ms_to_datetime(close_time_ms)
-        available_time = close_time + timedelta(milliseconds=1)
-
-        return available_time > ingestion_time
-
     def _canonical_record(
         self,
         *,
@@ -331,7 +292,7 @@ class BinancePublicMarketDataAdapter(
         timeframe: str,
         interval_ms: int,
         ingestion_time: datetime,
-    ) -> tuple[dict[str, Any], int]:
+    ) -> tuple[dict[str, Any], int] | None:
         if not isinstance(raw_kline, list):
             raise MalformedMarketDataError(
                 "each Binance kline must be an array"
@@ -395,9 +356,7 @@ class BinancePublicMarketDataAdapter(
         available_time = close_time + timedelta(milliseconds=1)
 
         if available_time > ingestion_time:
-            raise MalformedMarketDataError(
-                "received an incomplete candle before its close time"
-            )
+            return None
 
         event_time = self._ms_to_datetime(open_time_ms)
 
