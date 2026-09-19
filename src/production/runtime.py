@@ -21,6 +21,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Sequence
 
 from src.data.collector.adapter import BinancePublicMarketDataAdapter, MarketDataError
+from src.data.collector.binance_depth import BinancePublicDepthAdapter, BinanceDepthError
+from src.market_integrity.detector import assess_market_integrity
 from src.features.rsi import compute_rsi
 from src.models.baseline_pipeline import BaselineRSIPipeline
 from src.production.command_center_contract import QuantCommandCenterSnapshot
@@ -130,6 +132,10 @@ class ProductionSnapshotRuntime:
             timeout_seconds=config.request_timeout_seconds,
             max_retries=config.max_retries,
         )
+        self.depth_adapter = BinancePublicDepthAdapter(
+            timeout_seconds=config.request_timeout_seconds,
+        )
+        self._previous_depth = None
         self.state = RuntimeState(config.symbol)
         self.paper_engine = PaperTradingEngine()
         self.journal = Journal()
@@ -192,16 +198,35 @@ class ProductionSnapshotRuntime:
 
         latest_close = float(records[-1]["close"])
         latest_low = float(records[-1]["low"])
+        depth = self.depth_adapter.fetch_depth(self.config.symbol)
+        baseline_volume = sum(float(r["volume"]) for r in records[-21:-1]) / max(1, len(records[-21:-1]))
+        integrity = assess_market_integrity(
+            bid_depth=depth.bids,
+            ask_depth=depth.asks,
+            prior_bid_depth=self._previous_depth.bids if self._previous_depth is not None else None,
+            prior_ask_depth=self._previous_depth.asks if self._previous_depth is not None else None,
+            recent_volume=float(records[-1]["volume"]),
+            baseline_volume=baseline_volume,
+        )
+        self._previous_depth = depth
         paper_cycle = self.paper_cycle.run(
             symbol=inference.symbol,
             probability=inference.probability,
             entry_price=latest_close,
             stop_price=latest_low,
-            market_integrity=None,
+            market_integrity=integrity,
         )
         paper_status = {
-            "status": "BLOCKED",
+            "status": "PAPER" if paper_cycle.paper_position is not None else "NO_TRADE",
             "reason": paper_cycle.decision.reason,
+            "market_integrity": {
+                "status": integrity.status,
+                "spoofing_risk": integrity.spoofing_risk,
+                "liquidity_withdrawal_risk": integrity.liquidity_withdrawal_risk,
+                "volume_anomaly_risk": integrity.volume_anomaly_risk,
+                "reasons": list(integrity.reasons),
+            },
+            "journal_entries": len(self.journal.snapshot().get("entries", [])) if isinstance(self.journal.snapshot(), dict) else None,
         }
         journal_snapshot = self.journal.snapshot()
 
@@ -236,7 +261,7 @@ class ProductionSnapshotRuntime:
                     inference.timeframe,
                     inference.probability,
                 )
-            except (MarketDataError, RuntimeError, ValueError, TypeError) as exc:
+            except (MarketDataError, BinanceDepthError, RuntimeError, ValueError, TypeError) as exc:
                 LOGGER.error("runtime refresh unavailable: %s", exc)
                 self.state.set_offline(str(exc))
             self._stop.wait(self.config.refresh_seconds)
