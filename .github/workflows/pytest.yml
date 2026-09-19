@@ -16,6 +16,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Probe Binance endpoint reachability
+        continue-on-error: true
+        run: |
+          set +e
+          for url in \
+            "https://fapi.binance.com/fapi/v1/ping" \
+            "https://fapi.binance.com/fapi/v1/time" \
+            "https://fstream.binance.com" \
+            "https://data-api.binance.vision/api/v3/ping"; do
+            echo "=== $url ==="
+            curl -sS -L --max-time 10 -o /tmp/response -w "HTTP %{http_code} remote=%{remote_ip} size=%{size_download}\\n" "$url"
+            rc=$?
+            echo "curl_exit=$rc"
+            if [ -s /tmp/response ]; then head -c 500 /tmp/response; echo; fi
+          done
       - name: Install test dependencies
         run: python -m pip install -r requirements.txt pytest
       - name: Run targeted bridge, runtime, and final-gate tests
