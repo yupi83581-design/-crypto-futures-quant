@@ -25,6 +25,9 @@ from src.features.rsi import compute_rsi
 from src.models.baseline_pipeline import BaselineRSIPipeline
 from src.production.command_center_contract import QuantCommandCenterSnapshot
 from src.production.inference import InferenceInput, InferenceResult, ProductionInferenceEngine
+from src.production.paper_cycle import ProductionPaperCycle
+from src.monitoring.journal import Journal
+from src.paper.engine import PaperTradingEngine
 from src.production.snapshot_bridge import build_command_center_snapshot
 from src.production.snapshot_http import create_snapshot_server
 
@@ -128,6 +131,12 @@ class ProductionSnapshotRuntime:
             max_retries=config.max_retries,
         )
         self.state = RuntimeState(config.symbol)
+        self.paper_engine = PaperTradingEngine()
+        self.journal = Journal()
+        self.paper_cycle = ProductionPaperCycle(
+            paper_engine=self.paper_engine,
+            journal=self.journal,
+        )
         self._stop = threading.Event()
         self._server = None
 
@@ -181,6 +190,21 @@ class ProductionSnapshotRuntime:
             )
         )
 
+        latest_close = float(records[-1]["close"])
+        latest_low = float(records[-1]["low"])
+        paper_cycle = self.paper_cycle.run(
+            symbol=inference.symbol,
+            probability=inference.probability,
+            entry_price=latest_close,
+            stop_price=latest_low,
+            market_integrity=None,
+        )
+        paper_status = {
+            "status": "BLOCKED",
+            "reason": paper_cycle.decision.reason,
+        }
+        journal_snapshot = self.journal.snapshot()
+
         snapshot = build_command_center_snapshot(
             symbol=inference.symbol,
             status="READY",
@@ -195,6 +219,8 @@ class ProductionSnapshotRuntime:
                 "provenance": "BINANCE_PUBLIC_FUTURES_KLINES",
             },
             inference=inference,
+            paper_trading=paper_status,
+            journal_monitoring=journal_snapshot,
             validation_status="INSUFFICIENT_EVIDENCE",
         )
         self.state.set_snapshot(snapshot)
