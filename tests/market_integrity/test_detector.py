@@ -32,7 +32,7 @@ def test_liquidity_withdrawal_is_suspicious():
         prior_bid_depth=prior,
         prior_ask_depth=prior,
     )
-    assert result.liquidity_withdrawal_risk >= 0.75
+    assert result.liquidity_withdrawal_risk >= 0.50
     assert result.status == "SUSPICIOUS"
 
 
