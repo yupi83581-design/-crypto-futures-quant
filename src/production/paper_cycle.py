@@ -65,6 +65,32 @@ class ProductionPaperCycle:
         market_integrity: MarketIntegrityResult | None = None,
     ) -> PaperCycleResult:
         """Evaluate one cycle and open a virtual long only when all gates pass."""
+        if self.paper_engine.position is not None:
+            blocked = DecisionResult(
+                approved=False,
+                reason="paper position already open",
+                probability=float(probability),
+                expected_value=0.0,
+                risk_approved=False,
+            )
+            entry = self.journal.record(
+                symbol=symbol,
+                signal=signal,
+                probability=probability,
+                expected_value=0.0,
+                risk_approved=False,
+                approved=False,
+            )
+            return PaperCycleResult(
+                probability=float(probability),
+                expected_value=None,
+                risk=None,
+                decision=blocked,
+                paper_position=self.paper_engine.position,
+                journal_entry=entry,
+                market_integrity=market_integrity,
+            )
+
         if market_integrity is None:
             decision = make_decision(
                 probability=probability,
