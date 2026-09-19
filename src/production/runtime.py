@@ -226,7 +226,7 @@ class ProductionSnapshotRuntime:
                 "volume_anomaly_risk": integrity.volume_anomaly_risk,
                 "reasons": list(integrity.reasons),
             },
-            "journal_entries": len(self.journal.snapshot().get("entries", [])) if isinstance(self.journal.snapshot(), dict) else None,
+            "journal_entries": self.journal.snapshot().total_entries,
         }
         journal_snapshot = self.journal.snapshot()
 
