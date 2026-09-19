@@ -107,7 +107,7 @@ def test_low_probability_is_rejected_without_opening_paper_position():
 
 
 def test_existing_paper_position_does_not_open_a_second_position() -> None:
-    from src.market_integrity.detector import MarketIntegrityResult, OrderBookLevel
+    from src.market_integrity.detector import MarketIntegrityResult
 
     paper = PaperTradingEngine()
     paper.open_long(entry_price=100.0, quantity=1.0)
