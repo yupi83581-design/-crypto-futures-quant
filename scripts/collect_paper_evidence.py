@@ -97,12 +97,18 @@ def main() -> None:
 
     reward = close * 0.02
     loss = max(0.0, close - float(records[-1]["low"]))
+    # Conservative public-reference friction for regular USDⓈ-M taker execution.
+    # These are model assumptions, not a claim about the user's account tier.
+    fee_rate = float(os.getenv("QUANT_FEE_RATE", "0.0005"))
+    slippage_rate = float(os.getenv("QUANT_SLIPPAGE_RATE", "0.0002"))
+    if not 0.0 <= fee_rate <= 0.01 or not 0.0 <= slippage_rate <= 0.01:
+        raise RuntimeError("invalid friction configuration")
     ev = calculate_expected_value(
         probability=probability,
         reward=reward,
         loss=loss,
-        fee=0.0,
-        slippage=0.0,
+        fee=fee_rate,
+        slippage=slippage_rate,
     )
     risk = assess_risk(
         equity=float(state["equity"]),
@@ -143,6 +149,8 @@ def main() -> None:
         "integrity_status": integrity.status,
         "integrity_reasons": list(integrity.reasons),
         "expected_value_net": ev.net_expected_value,
+        "fee_rate_assumption": fee_rate,
+        "slippage_rate_assumption": slippage_rate,
         "risk_approved": bool(risk and risk.approved),
         "decision_approved": decision.approved,
         "decision_reason": decision.reason,
