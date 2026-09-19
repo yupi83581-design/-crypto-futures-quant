@@ -1,0 +1,36 @@
+name: continuous-paper-evidence
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: continuous-paper-evidence
+  cancel-in-progress: false
+
+jobs:
+  paper-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/phase13-audit
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Collect one real Binance paper cycle
+        run: python scripts/collect_paper_evidence.py
+      - name: Persist real evidence ledger
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evidence/paper_state.json evidence/paper_trading.jsonl
+          git diff --cached --quiet || git commit -m "Record real paper-trading evidence"
+          git push origin HEAD:agent/phase13-audit
