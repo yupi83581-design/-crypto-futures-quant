@@ -57,10 +57,10 @@ def main() -> None:
     pipeline = BaselineRSIPipeline()
     pipeline.fit(records[:split])
 
-    features = pipeline._prepare_dataset(records[split:])
-    if not features:
+    evaluation = pipeline.evaluate(records[split:])
+    if not evaluation.probabilities:
         raise RuntimeError("real inference window produced no usable observations")
-    probability = float(pipeline.model.predict_proba([features[-1][0]])[0][1])
+    probability = float(evaluation.probabilities[-1])
 
     bids, asks = fetch_depth(symbol)
     recent_volume = float(records[-1]["volume"])
