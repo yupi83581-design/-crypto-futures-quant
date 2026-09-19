@@ -15,10 +15,14 @@ import time
 CYCLES = 12
 WAIT_SECONDS = 300
 BRANCH = "agent/phase13-audit"
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
 def run(*args: str, check: bool = True) -> None:
-    subprocess.run(args, check=check)
+    env = os.environ.copy()
+    existing_pythonpath = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = ROOT + (os.pathsep + existing_pythonpath if existing_pythonpath else "")
+    subprocess.run(args, check=check, env=env)
 
 
 def main() -> int:
