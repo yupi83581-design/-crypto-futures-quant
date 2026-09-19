@@ -1,0 +1,22 @@
+name: binance-futures-archive-diagnostic
+
+on:
+  push:
+    branches:
+      - agent/phase13-audit
+    paths:
+      - ".github/workflows/binance-futures-archive-diagnostic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe Binance Futures archive
+        run: |
+          set -e
+          url="https://data.binance.vision/data/futures/um/daily/klines/BTCUSDT/5m/BTCUSDT-5m-2026-09-18.zip"
+          curl -sS -I --max-time 20 "$url" | head -20
