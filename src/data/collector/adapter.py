@@ -207,13 +207,18 @@ class BinancePublicMarketDataAdapter(
             page_open_times: list[int] = []
 
             for raw_kline in payload:
-                record, open_time_ms = self._canonical_record(
+                canonical = self._canonical_record(
                     raw_kline=raw_kline,
                     symbol=normalized_symbol,
                     timeframe=timeframe,
                     interval_ms=interval_ms,
                     ingestion_time=ingestion_time,
                 )
+
+                if canonical is None:
+                    continue
+
+                record, open_time_ms = canonical
 
                 if open_time_ms < start_ms:
                     continue
@@ -287,7 +292,7 @@ class BinancePublicMarketDataAdapter(
         timeframe: str,
         interval_ms: int,
         ingestion_time: datetime,
-    ) -> tuple[dict[str, Any], int]:
+    ) -> tuple[dict[str, Any], int] | None:
         if not isinstance(raw_kline, list):
             raise MalformedMarketDataError(
                 "each Binance kline must be an array"
@@ -351,9 +356,7 @@ class BinancePublicMarketDataAdapter(
         available_time = close_time + timedelta(milliseconds=1)
 
         if available_time > ingestion_time:
-            raise MalformedMarketDataError(
-                "received an incomplete candle before its close time"
-            )
+            return None
 
         event_time = self._ms_to_datetime(open_time_ms)
 

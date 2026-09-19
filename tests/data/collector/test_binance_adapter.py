@@ -130,7 +130,7 @@ def test_conflicting_duplicate_is_rejected():
         )
 
 
-def test_incomplete_candle_is_rejected():
+def test_incomplete_latest_candle_is_excluded():
     now = datetime.now(UTC).replace(second=0, microsecond=0)
     open_time = now - timedelta(minutes=2)
 
@@ -141,13 +141,33 @@ def test_incomplete_candle_is_rejected():
         clock=lambda: now,
     )
 
-    with pytest.raises(MalformedMarketDataError):
-        adapter.fetch_market_data(
-            symbol="BTCUSDT",
-            timeframe="5m",
-            start_time=open_time - timedelta(minutes=5),
-            end_time=now,
-        )
+    records = adapter.fetch_market_data(
+        symbol="BTCUSDT",
+        timeframe="5m",
+        start_time=open_time - timedelta(minutes=5),
+        end_time=now,
+    )
+
+    assert records == []
+
+
+def test_closed_candle_is_accepted():
+    ingestion_time = datetime(2026, 1, 1, 1, 0, tzinfo=UTC)
+
+    adapter = BinancePublicMarketDataAdapter(
+        http_get=lambda url, timeout: json_response([kline(0)]),
+        clock=lambda: ingestion_time,
+    )
+
+    records = adapter.fetch_market_data(
+        symbol="BTCUSDT",
+        timeframe="5m",
+        start_time=datetime(1970, 1, 1, tzinfo=UTC),
+        end_time=datetime(1970, 1, 1, 0, 5, tzinfo=UTC),
+    )
+
+    assert len(records) == 1
+    assert records[0]["event_time"] == "1970-01-01T00:00:00.000Z"
 
 
 def test_invalid_ohlc_relationship_is_rejected():
