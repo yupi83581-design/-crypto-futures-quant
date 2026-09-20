@@ -104,7 +104,18 @@ def load_data(symbol: str, start: datetime, end: datetime, cache: Path) -> list[
             if exc.code == 404:
                 continue
             raise
-    records.sort(key=lambda r: r["event_time"])
+    # Normalize archive ordering and reject conflicting duplicate timestamps.
+    by_time: dict[str, dict] = {}
+    for record in records:
+        key = record["event_time"]
+        previous = by_time.get(key)
+        if previous is not None:
+            comparable = ("open", "high", "low", "close", "volume")
+            if any(previous[field] != record[field] for field in comparable):
+                raise RuntimeError(f"conflicting Binance Vision rows for {key}")
+            continue
+        by_time[key] = record
+    records = sorted(by_time.values(), key=lambda r: parse_time(r["event_time"]))
     return [r for r in records if start <= parse_time(r["event_time"]) <= end and r["close_time"] <= end]
 
 
