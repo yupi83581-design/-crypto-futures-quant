@@ -195,38 +195,9 @@ def normal_cdf(x: float) -> float:
 
 
 def normal_ppf(p: float) -> float:
-    # Acklam rational approximation.
-    if not 0 < p < 1:
+    if not 0.0 < p < 1.0:
         raise ValueError("p must be in (0,1)")
-    a=[-39.6968302866538,220.946098424521,-275.928510446969,138.357751867269,-30.6647980661472,2.50662827745924]
-    b=[-54.4760987982241,161.585836858041,-155.698979859887,66.8013118877197,-13.2806815528857]
-    c=[-0.00778489400243029,-0.322396458041136,-2.40075827716184,-2.54973253934373,4.37466414146497,2.93816398269878]
-    d=[0.00778469570904146,0.32246712907004,2.445134137143,3.75440866190742]
-    if p < 0.02425:
-        q=math.sqrt(-2*math.log(p))
-        return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1))
-    if p > 1-0.02425:
-        q=math.sqrt(-2*math.log(1-p))
-        return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1))
-    q=p-0.5; r=q*q
-    return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1))
-
-
-def deflated_sharpe(returns: list[float], trials: int) -> float | None:
-    n=len(returns)
-    if n < 30 or trials < 2:
-        return None
-    sr=sharpe(returns)
-    mean=statistics.mean(returns)
-    m2=sum((x-mean)**2 for x in returns)/n
-    if m2 == 0:
-        return None
-    skew=sum((x-mean)**3 for x in returns)/n/(m2**1.5)
-    kurt=sum((x-mean)**4 for x in returns)/n/(m2**2)
-    emax=(1-0.5772156649)*normal_ppf(1-1/trials)+0.5772156649*normal_ppf(1-1/(trials*math.e))
-    denom=math.sqrt(max(1e-12, 1-skew*sr+(kurt-1)*sr*sr/4))
-    z=(sr-emax)*math.sqrt(n-1)/denom
-    return normal_cdf(z)
+    return statistics.NormalDist().inv_cdf(p)
 
 
 def main() -> None:
