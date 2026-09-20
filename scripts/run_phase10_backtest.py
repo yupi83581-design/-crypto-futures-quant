@@ -121,8 +121,7 @@ def load_data(symbol: str, start: datetime, end: datetime, cache: Path) -> list[
 
 def predict_fold(train: list[dict], test: list[dict]) -> tuple[list[float], list[int], list[dict]]:
     warmup = train[-RSI_WARMUP:]
-    future = test[-LABEL_HORIZON:]
-    evaluation = warmup + test + future
+    evaluation = warmup + test
     pipeline = BaselineRSIPipeline(rsi_period=14, label_horizon=LABEL_HORIZON)
     pipeline.fit(train)
     result = pipeline.evaluate(evaluation)
