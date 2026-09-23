@@ -311,7 +311,16 @@ def main() -> None:
     if len(baseline_wfo_trades) < 30:
         raise SystemExit("insufficient WFO trades for performance evidence")
 
-    pbo = pbo_cs_cv([wfo_returns[t] for t in THRESHOLDS], block_count=8)
+    pbo_block_count = 8
+    pbo_observations = len(wfo_returns[THRESHOLDS[0]])
+    pbo_usable_observations = pbo_observations - (pbo_observations % pbo_block_count)
+    if pbo_usable_observations < pbo_block_count * 2:
+        raise SystemExit("insufficient aligned WFO observations for 8-block CSCV")
+    pbo_inputs = [
+        wfo_returns[t][:pbo_usable_observations]
+        for t in THRESHOLDS
+    ]
+    pbo = pbo_cs_cv(pbo_inputs, block_count=pbo_block_count)
     dsr = deflated_sharpe_ratio(wfo_returns[0.50], trial_count=len(THRESHOLDS))
     robustness = evaluate_robustness(
         base_parameters=0.50,
@@ -365,7 +374,12 @@ def main() -> None:
             "trial_count_basis": "complete explicit threshold strategy universe",
             "trial_universe": list(THRESHOLDS),
         },
-        "pbo_cscv": pbo.__dict__,
+        "pbo_cscv": {
+            **pbo.__dict__,
+            "input_observations_before_trim": pbo_observations,
+            "trimmed_observations": pbo_observations - pbo_usable_observations,
+            "trim_policy": "drop trailing observations so aligned time-series length is divisible by block_count",
+        },
         "robustness": {
             **robustness.__dict__,
             "perturbations": [0.475, 0.525],
