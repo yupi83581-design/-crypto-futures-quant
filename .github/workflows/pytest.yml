@@ -34,6 +34,7 @@ jobs:
         run: python -m pytest -q tests/integration/test_runtime_live.py
 
   quant-validation:
+    needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 70
     steps:
@@ -89,7 +90,8 @@ jobs:
       - name: Generate evidence-driven final validation report
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: python scripts/run_final_validation.py || true
+          VALIDATION_TESTS_PASSED: "1"
+        run: python scripts/run_final_validation.py
       - name: Commit final validation report
         run: |
           git config user.name "github-actions[bot]"
