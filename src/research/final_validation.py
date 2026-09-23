@@ -9,7 +9,31 @@ class GateStatus(str, Enum):
     FAIL = "FAIL"
     INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 
-REQUIRED_STAGES = ("data_quality", "model", "calibration", "ev_cost", "risk", "backtest", "walk_forward", "oos", "regime", "robustness", "paper_trading", "monitoring")
+REQUIRED_STAGES = (
+    "data_quality",
+    "model",
+    "calibration",
+    "ev_cost",
+    "risk",
+    "backtest",
+    "walk_forward",
+    "oos",
+    "regime",
+    "robustness",
+    "paper_trading",
+    "monitoring",
+    "trading_performance",
+    "dsr",
+    "pbo_cscv",
+    "lookahead_protection",
+    "untouched_final_test",
+    "risk_controls",
+    "kill_switch",
+    "state_persistence",
+    "evidence_integrity",
+    "reproducibility",
+    "execution_lock",
+)
 
 @dataclass(frozen=True)
 class FinalValidationResult:
