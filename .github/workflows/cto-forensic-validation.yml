@@ -1,0 +1,108 @@
+name: cto-forensic-validation
+
+on:
+  push:
+    branches:
+      - agent/phase13-audit
+    paths:
+      - "scripts/audit_phase10_accounting.py"
+      - "scripts/audit_paper_evidence.py"
+      - "scripts/audit_security_execution.py"
+      - "scripts/audit_quant_math.py"
+      - "scripts/run_final_validation.py"
+      - "tests/research/**"
+      - "tests/risk/**"
+      - "tests/production/**"
+      - ".github/workflows/cto-forensic-validation.yml"
+      - "evidence/phase10_backtest.json"
+      - "evidence/paper_trading.jsonl"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cto-forensic-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  forensic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/phase13-audit
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt pytest
+      - name: Run focused fail-closed tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python -m pytest -q tests/research/test_dsr.py tests/research/test_pbo.py tests/risk/test_engine.py tests/production/test_runtime.py tests/production/test_snapshot_bridge.py tests/production/test_fail_closed_gates.py
+      - name: Audit existing 12-cycle paper evidence
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set +e
+          python scripts/audit_paper_evidence.py > evidence/paper_evidence_audit.json
+          status=$?
+          set -e
+          test -s evidence/paper_evidence_audit.json
+          exit $status
+      - name: Recompute Phase 10 accounting audit
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python scripts/audit_phase10_accounting.py
+          test -s evidence/phase10_accounting_audit.json
+      - name: Audit DSR and PBO evidence
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python scripts/audit_quant_math.py
+          test -s evidence/quant_math_audit.json
+      - name: Audit execution isolation
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set +e
+          python scripts/audit_security_execution.py
+          status=$?
+          set -e
+          test -s evidence/security_execution_audit.json
+          exit $status
+      - name: Generate final validation from current evidence
+        if: always()
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          VALIDATION_TESTS_PASSED: "1"
+        run: |
+          set +e
+          python scripts/run_final_validation.py
+          set -e
+          test -s evidence/final_validation.json
+          exit 0
+      - name: Generate CTO authorization artifact
+        if: always()
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set +e
+          python scripts/run_cto_forensic_authorization.py
+          set -e
+          test -s evidence/cto_forensic_authorization.json
+      - name: Commit derived forensic artifacts only
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin agent/phase13-audit
+          git merge --no-edit origin/agent/phase13-audit
+          git add evidence/phase10_accounting_audit.json evidence/paper_evidence_audit.json evidence/quant_math_audit.json evidence/security_execution_audit.json evidence/final_validation.json evidence/cto_forensic_authorization.json
+          git diff --cached --quiet || git commit -m "Record forensic validation artifacts"
+          git push origin HEAD:agent/phase13-audit
