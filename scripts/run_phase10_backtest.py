@@ -27,6 +27,7 @@ from pathlib import Path
 from src.models.baseline_pipeline import BaselineRSIPipeline
 from src.research.dsr import deflated_sharpe_ratio
 from src.research.pbo import pbo_cs_cv
+from src.research.robustness import evaluate_robustness
 
 ARCHIVE = "https://data.binance.vision/data/futures/um/monthly/klines/{symbol}/5m/{symbol}-5m-{year:04d}-{month:02d}.zip"
 LABEL_HORIZON = 3
@@ -287,6 +288,12 @@ def main() -> None:
 
     pbo = pbo_cs_cv([wfo_returns[t] for t in THRESHOLDS], block_count=8)
     dsr = deflated_sharpe_ratio(wfo_returns[0.50], trial_count=len(THRESHOLDS))
+    robustness = evaluate_robustness(
+        base_parameters=0.50,
+        perturbations=(0.475, 0.525),
+        evaluator=lambda threshold: performance(wfo_trades[float(threshold)])["net_return"],
+        tolerance=0.05,
+    )
 
     # Untouched final test: fixed threshold 0.50, selected before final evaluation.
     development = [r for r in records if parse_time(r["event_time"]) < final_cut]
@@ -330,6 +337,12 @@ def main() -> None:
             "trial_universe": list(THRESHOLDS),
         },
         "pbo_cscv": pbo.__dict__,
+        "robustness": {
+            **robustness.__dict__,
+            "perturbations": [0.475, 0.525],
+            "tolerance": 0.05,
+            "metric": "WFO net return",
+        },
         "method": {
             "fee_assumption": FEE,
             "slippage_assumption": SLIPPAGE,
