@@ -44,6 +44,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           python -m pytest -q tests/research/test_dsr.py tests/research/test_pbo.py tests/risk/test_engine.py tests/production/test_runtime.py tests/production/test_snapshot_bridge.py tests/production/test_fail_closed_gates.py
+          echo "VALIDATION_TESTS_PASSED=1" >> "$GITHUB_ENV"
       - name: Audit existing 12-cycle paper evidence
         env:
           PYTHONPATH: ${{ github.workspace }}
@@ -80,7 +81,6 @@ jobs:
         if: always()
         env:
           PYTHONPATH: ${{ github.workspace }}
-          VALIDATION_TESTS_PASSED: "1"
         run: |
           set +e
           python scripts/run_final_validation.py
