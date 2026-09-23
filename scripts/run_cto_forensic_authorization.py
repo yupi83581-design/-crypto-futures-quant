@@ -10,6 +10,8 @@ FINAL = ROOT / "evidence" / "final_validation.json"
 PAPER = ROOT / "evidence" / "paper_evidence_audit.json"
 PHASE10 = ROOT / "evidence" / "phase10_validation_refresh.json"
 SECURITY = ROOT / "evidence" / "security_execution_audit.json"
+ACCOUNTING = ROOT / "evidence" / "phase10_accounting_audit.json"
+MATH = ROOT / "evidence" / "quant_math_audit.json"
 OUT = ROOT / "evidence" / "cto_forensic_authorization.json"
 
 
@@ -22,16 +24,18 @@ def main() -> int:
     paper = load(PAPER)
     phase10 = load(PHASE10) or load(ROOT / "evidence" / "phase10_backtest.json")
     security = load(SECURITY)
+    accounting = load(ACCOUNTING)
+    math_audit = load(MATH)
 
     final_status = final.get("status") if final else "INSUFFICIENT_EVIDENCE"
     security_status = security.get("status") if security else "INSUFFICIENT_EVIDENCE"
     paper_status = paper.get("status") if paper else "INSUFFICIENT_EVIDENCE"
 
     gates = {
-        "accounting_forensic": "PASS" if (ROOT / "evidence" / "phase10_accounting_audit.json").exists() else "INSUFFICIENT_EVIDENCE",
+        "accounting_forensic": accounting.get("status") if accounting else "INSUFFICIENT_EVIDENCE",
         "paper_evidence_forensic": paper_status,
-        "dsr_mathematical_audit": "PASS" if phase10 and phase10.get("dsr", {}).get("trial_sharpe_variance") is not None else "INSUFFICIENT_EVIDENCE",
-        "pbo_cscv_mathematical_audit": "PASS" if phase10 and phase10.get("pbo_cscv", {}).get("path_count", 0) > 0 else "INSUFFICIENT_EVIDENCE",
+        "dsr_mathematical_audit": math_audit.get("dsr", {}).get("status", "INSUFFICIENT_EVIDENCE") if math_audit else "INSUFFICIENT_EVIDENCE",
+        "pbo_cscv_mathematical_audit": math_audit.get("pbo_cscv", {}).get("status", "INSUFFICIENT_EVIDENCE") if math_audit else "INSUFFICIENT_EVIDENCE",
         "quantitative_validation": final_status,
         "risk_failure_tests": "INSUFFICIENT_EVIDENCE",
         "runtime_snapshot_audit": "INSUFFICIENT_EVIDENCE",
