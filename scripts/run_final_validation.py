@@ -40,6 +40,8 @@ def main() -> int:
         pbo = phase10.get("pbo_cscv", {})
         wf = phase10.get("walk_forward", {})
         robustness = phase10.get("robustness", {})
+        monte_carlo = phase10.get("monte_carlo", {})
+        regime_eval = phase10.get("regime_evaluation", {})
         calibration = phase10.get("calibration")
 
         evidence["data_quality"] = GateStatus.PASS.value if integrity.get("passed") else GateStatus.FAIL.value
@@ -57,8 +59,10 @@ def main() -> int:
         evidence["backtest"] = GateStatus.PASS.value if wfo_profitable else (GateStatus.FAIL.value if perf.get("trade_count", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value)
         evidence["walk_forward"] = GateStatus.PASS.value if wf.get("folds", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["oos"] = GateStatus.PASS.value if final.get("untouched") is True and final_profitable else (GateStatus.FAIL.value if final.get("untouched") is True and final_perf.get("trade_count", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value)
-        evidence["regime"] = GateStatus.INSUFFICIENT_EVIDENCE.value
+        regime_counts = [regime_eval.get(name, {}).get("observations", 0) for name in ("trend_up", "trend_down", "high_volatility", "range")]
+        evidence["regime"] = GateStatus.PASS.value if all(isinstance(x, int) and x > 0 for x in regime_counts) else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["robustness"] = GateStatus.PASS.value if robustness.get("stable") is True else GateStatus.FAIL.value
+        evidence["monte_carlo"] = GateStatus.PASS.value if all(math.isfinite(float(monte_carlo.get(name, float("nan")))) for name in ("mean_return", "lower_bound", "upper_bound", "max_drawdown_mean", "max_drawdown_upper_bound")) else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["paper_trading"] = GateStatus.PASS.value if paper and paper.get("status") == "PASS" else GateStatus.FAIL.value if paper else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["monitoring"] = GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["trading_performance"] = GateStatus.PASS.value if wfo_profitable and final.get("untouched") is True and final_profitable else (GateStatus.FAIL.value if perf.get("trade_count", 0) > 0 and final.get("untouched") is True else GateStatus.INSUFFICIENT_EVIDENCE.value)
@@ -80,7 +84,7 @@ def main() -> int:
             "monitoring", "trading_performance", "dsr", "pbo_cscv",
             "lookahead_protection", "untouched_final_test", "risk_controls",
             "kill_switch", "state_persistence", "evidence_integrity",
-            "reproducibility", "security",
+            "reproducibility", "monte_carlo", "security",
         ):
             evidence[gate] = GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["execution_lock"] = GateStatus.PASS.value
