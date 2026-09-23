@@ -127,3 +127,13 @@ def test_existing_paper_position_does_not_open_a_second_position() -> None:
     assert result.decision.approved is False
     assert result.decision.reason == "paper position already open"
     assert journal.snapshot().total_entries == 1
+
+
+def test_default_paper_cycle_includes_conservative_friction_assumptions():
+    cycle = ProductionPaperCycle(
+        paper_engine=PaperTradingEngine(),
+        journal=Journal(),
+    )
+
+    assert cycle.config.fee == 0.0005
+    assert cycle.config.slippage == 0.0002
