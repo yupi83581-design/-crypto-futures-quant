@@ -253,6 +253,15 @@ def period_returns_from_predictions(
     return returns
 
 
+def _sharpe(returns: list[float]) -> float:
+    if len(returns) < 2:
+        raise ValueError("at least 2 returns are required for Sharpe")
+    deviation = statistics.stdev(returns)
+    if deviation == 0.0:
+        return 0.0
+    return statistics.mean(returns) / deviation
+
+
 def equity_curve(returns: list[float], initial: float = 100_000.0) -> list[float]:
     equity = initial
     curve = [equity]
@@ -349,7 +358,12 @@ def main() -> None:
         for t in THRESHOLDS
     ]
     pbo = pbo_cs_cv(pbo_inputs, block_count=pbo_block_count)
-    dsr = deflated_sharpe_ratio(wfo_returns[0.50], trial_count=len(THRESHOLDS))
+    trial_sharpes = [_sharpe(wfo_returns[t]) for t in THRESHOLDS]
+    dsr = deflated_sharpe_ratio(
+        wfo_returns[0.50],
+        trial_count=len(THRESHOLDS),
+        trial_sharpes=trial_sharpes,
+    )
     robustness = evaluate_robustness(
         base_parameters=0.50,
         perturbations=(0.475, 0.525),
