@@ -66,7 +66,7 @@ def audit_latest_window() -> dict:
     elif cycle_numbers != list(range(cycle_numbers[0], cycle_numbers[0] + WINDOW)):
         errors.append("latest window cycle numbers are not consecutive")
 
-    status = "PASS" if not errors else "FAIL"
+    status = "PASS" if not errors and not continuity_gaps else "FAIL"
     return {
         "status": status,
         "window_size": WINDOW,
