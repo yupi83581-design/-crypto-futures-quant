@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import urllib.request
+import urllib.error
 
 from src.production.runtime import ProductionSnapshotRuntime, RuntimeConfig
 
