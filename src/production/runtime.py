@@ -324,11 +324,6 @@ def main() -> None:
     except KeyboardInterrupt:
         runtime.stop()
 
-
-if __name__ == "__main__":
-    main()
-
-
 def _validate_freshness(
     records: Sequence[dict[str, Any]],
     *,
@@ -363,3 +358,8 @@ def _validate_freshness(
             f"market data is stale: age={age_seconds:.1f}s "
             f"limit={interval_seconds * max_stale_intervals}s"
         )
+
+
+if __name__ == "__main__":
+    main()
+
