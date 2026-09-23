@@ -8,6 +8,7 @@ paper-evidence audit, and a successful validation test suite.
 from __future__ import annotations
 
 import json
+import math
 import os
 from pathlib import Path
 
@@ -35,10 +36,11 @@ def main() -> int:
         pbo = phase10.get("pbo_cscv", {})
         wf = phase10.get("walk_forward", {})
         robustness = phase10.get("robustness", {})
+        calibration = phase10.get("calibration")
 
         evidence["data_quality"] = GateStatus.PASS.value if integrity.get("passed") else GateStatus.FAIL.value
         evidence["model"] = GateStatus.PASS.value if perf.get("trade_count", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value
-        evidence["calibration"] = GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["calibration"] = GateStatus.PASS.value if calibration and math.isfinite(float(calibration.get("brier_score", float("nan")))) else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["ev_cost"] = GateStatus.PASS.value if phase10.get("method", {}).get("fee_assumption") is not None and phase10.get("method", {}).get("slippage_assumption") is not None else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["risk"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["backtest"] = GateStatus.PASS.value if perf.get("trade_count", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value
