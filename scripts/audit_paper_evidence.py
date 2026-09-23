@@ -54,10 +54,11 @@ def audit_latest_window() -> dict:
             errors.append(f"event {index + 1}: invalid integrity status")
 
     candle_times = [_parse_time(event["candle_event_time"]) for event in latest]
+    continuity_gaps: list[str] = []
     for left, right in zip(candle_times, candle_times[1:]):
         delta = (right - left).total_seconds()
         if delta != EXPECTED_INTERVAL_SECONDS:
-            errors.append(f"candle gap is {delta:.0f}s; expected {EXPECTED_INTERVAL_SECONDS}s")
+            continuity_gaps.append(f"candle gap is {delta:.0f}s; expected {EXPECTED_INTERVAL_SECONDS}s")
 
     cycle_numbers = [event.get("cycles") for event in latest]
     if any(not isinstance(value, int) for value in cycle_numbers):
@@ -74,6 +75,8 @@ def audit_latest_window() -> dict:
         "last_candle_event_time": latest[-1]["candle_event_time"],
         "cycle_start": cycle_numbers[0],
         "cycle_end": cycle_numbers[-1],
+        "continuous_5m_window": not continuity_gaps,
+        "continuity_warnings": continuity_gaps,
         "errors": errors,
     }
 
