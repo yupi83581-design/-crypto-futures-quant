@@ -61,3 +61,42 @@ def test_runtime_http_serves_current_state_without_fabrication() -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+def test_runtime_freshness_gate_blocks_stale_market_data():
+    from datetime import datetime, timezone
+
+    from src.production.runtime import _validate_freshness
+
+    now = datetime(2026, 9, 23, 12, 0, tzinfo=timezone.utc)
+    records = [{
+        "event_time": "2026-09-23T11:45:00.000Z",
+        "available_time": "2026-09-23T11:45:00.001Z",
+    }]
+
+    with __import__("pytest").raises(RuntimeError, match="market data is stale"):
+        _validate_freshness(
+            records,
+            now=now,
+            interval_seconds=300,
+            max_stale_intervals=2,
+        )
+
+
+def test_runtime_freshness_gate_accepts_recent_closed_data():
+    from datetime import datetime, timezone
+
+    from src.production.runtime import _validate_freshness
+
+    now = datetime(2026, 9, 23, 12, 0, tzinfo=timezone.utc)
+    records = [{
+        "event_time": "2026-09-23T11:55:00.000Z",
+        "available_time": "2026-09-23T11:55:00.001Z",
+    }]
+
+    _validate_freshness(
+        records,
+        now=now,
+        interval_seconds=300,
+        max_stale_intervals=2,
+    )
