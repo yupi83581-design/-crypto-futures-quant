@@ -12,6 +12,7 @@ on:
       - "tests/research/test_dsr.py"
       - "tests/research/test_pbo.py"
       - "scripts/audit_security_execution.py"
+      - "scripts/run_cto_forensic_authorization.py"
       - "tests/production/test_runtime.py"
       - ".github/workflows/quantitative-validation-evidence.yml"
   workflow_dispatch:
@@ -113,11 +114,23 @@ jobs:
           test -s evidence/final_validation.json
           exit $status
 
+      - name: Generate CTO authorization artifact
+        if: always()
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set +e
+          python scripts/run_cto_forensic_authorization.py
+          status=$?
+          set -e
+          test -s evidence/cto_forensic_authorization.json
+          exit 0
+
       - name: Commit validation evidence
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add evidence/phase10_validation_refresh.json evidence/paper_evidence_audit.json evidence/security_execution_audit.json evidence/final_validation.json
+          git add evidence/phase10_validation_refresh.json evidence/paper_evidence_audit.json evidence/security_execution_audit.json evidence/final_validation.json evidence/cto_forensic_authorization.json
           git diff --cached --quiet || git commit -m "Record final validation evidence"
           git push origin HEAD:agent/phase13-audit
