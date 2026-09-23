@@ -33,6 +33,7 @@ REQUIRED_STAGES = (
     "evidence_integrity",
     "reproducibility",
     "execution_lock",
+    "security",
 )
 
 @dataclass(frozen=True)
