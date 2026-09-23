@@ -47,3 +47,30 @@ def test_requires_enough_observations_for_shape_statistics():
 def test_explicit_trial_count_is_part_of_result():
     result = deflated_sharpe_ratio([0.01, -0.01, 0.02, 0.0, 0.005], trial_count=11)
     assert result.trial_count == 11
+
+
+def test_trial_sharpe_variance_is_used_in_expected_maximum():
+    values = [0.01, 0.02, -0.005, 0.015, 0.0, 0.012, -0.004, 0.009]
+    low_variance = deflated_sharpe_ratio(
+        values,
+        trial_count=3,
+        trial_sharpes=[0.01, 0.02, 0.03],
+    )
+    high_variance = deflated_sharpe_ratio(
+        values,
+        trial_count=3,
+        trial_sharpes=[-1.0, 0.0, 1.0],
+    )
+
+    assert high_variance.trial_sharpe_variance > low_variance.trial_sharpe_variance
+    assert high_variance.expected_max_sharpe > low_variance.expected_max_sharpe
+    assert high_variance.deflated_sharpe_probability < low_variance.deflated_sharpe_probability
+
+
+def test_trial_sharpe_universe_must_match_trial_count():
+    with pytest.raises(ValueError):
+        deflated_sharpe_ratio(
+            [0.01, -0.01, 0.02, 0.0],
+            trial_count=3,
+            trial_sharpes=[0.1, 0.2],
+        )
