@@ -313,17 +313,6 @@ def _timeframe_seconds(timeframe: str) -> int:
     return milliseconds // 1000
 
 
-def main() -> None:
-    logging.basicConfig(
-        level=os.getenv("QUANT_LOG_LEVEL", "INFO"),
-        format="%(asctime)s %(levelname)s %(message)s",
-    )
-    runtime = ProductionSnapshotRuntime(RuntimeConfig.from_env())
-    try:
-        runtime.start()
-    except KeyboardInterrupt:
-        runtime.stop()
-
 def _validate_freshness(
     records: Sequence[dict[str, Any]],
     *,
@@ -358,6 +347,18 @@ def _validate_freshness(
             f"market data is stale: age={age_seconds:.1f}s "
             f"limit={interval_seconds * max_stale_intervals}s"
         )
+
+
+def main() -> None:
+    logging.basicConfig(
+        level=os.getenv("QUANT_LOG_LEVEL", "INFO"),
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
+    runtime = ProductionSnapshotRuntime(RuntimeConfig.from_env())
+    try:
+        runtime.start()
+    except KeyboardInterrupt:
+        runtime.stop()
 
 
 if __name__ == "__main__":
