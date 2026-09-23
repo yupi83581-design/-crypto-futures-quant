@@ -20,6 +20,7 @@ class DSRResult:
     kurtosis: float
     trial_count: int
     expected_max_sharpe: float
+    trial_sharpe_variance: float
     probabilistic_sharpe: float
     deflated_sharpe_probability: float
 
@@ -32,6 +33,7 @@ def deflated_sharpe_ratio(
     *,
     trial_count: int,
     benchmark_sharpe: float = 0.0,
+    trial_sharpes: Sequence[float] | None = None,
 ) -> DSRResult:
     """Calculate the Deflated Sharpe Ratio probability.
 
@@ -49,6 +51,10 @@ def deflated_sharpe_ratio(
         explicit by design; callers must not infer it from an unrelated list.
     benchmark_sharpe:
         Null/benchmark Sharpe. Defaults to zero.
+    trial_sharpes:
+        Sharpe ratios for the complete trial universe. When supplied, their
+        cross-sectional variance is used in the expected-maximum correction.
+        If omitted, unit variance is used as an explicit legacy fallback.
     """
     values = _validate_returns(returns)
     n = len(values)
@@ -68,7 +74,8 @@ def deflated_sharpe_ratio(
 
     skew = _sample_skewness(values)
     kurtosis = _sample_kurtosis(values)
-    expected_max = _expected_maximum_sharpe(trial_count)
+    trial_variance = _trial_sharpe_variance(trial_sharpes, trial_count)
+    expected_max = _expected_maximum_sharpe(trial_count, trial_variance)
     threshold = max(float(benchmark_sharpe), expected_max)
 
     if not math.isfinite(observed):
@@ -89,19 +96,41 @@ def deflated_sharpe_ratio(
         kurtosis=float(kurtosis),
         trial_count=trial_count,
         expected_max_sharpe=float(expected_max),
+        trial_sharpe_variance=float(trial_variance),
         probabilistic_sharpe=float(psr),
         deflated_sharpe_probability=float(psr),
     )
 
 
-def _expected_maximum_sharpe(trial_count: int) -> float:
-    if trial_count == 1:
+def _expected_maximum_sharpe(trial_count: int, trial_variance: float) -> float:
+    if trial_count == 1 or trial_variance == 0.0:
         return 0.0
     normal = statistics.NormalDist()
     q1 = normal.inv_cdf(1.0 - 1.0 / trial_count)
     q2 = normal.inv_cdf(1.0 - 1.0 / (trial_count * math.e))
-    return (1.0 - _EULER_GAMMA) * q1 + _EULER_GAMMA * q2
+    return math.sqrt(trial_variance) * ((1.0 - _EULER_GAMMA) * q1 + _EULER_GAMMA * q2)
 
+
+
+def _trial_sharpe_variance(
+    trial_sharpes: Sequence[float] | None,
+    trial_count: int,
+) -> float:
+    if trial_sharpes is None:
+        return 1.0
+    if len(trial_sharpes) != trial_count:
+        raise ValueError("trial_sharpes length must equal trial_count")
+    values = []
+    for index, value in enumerate(trial_sharpes):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"trial Sharpe at index {index} must be numeric")
+        value = float(value)
+        if not math.isfinite(value):
+            raise ValueError(f"trial Sharpe at index {index} must be finite")
+        values.append(value)
+    if trial_count < 2:
+        return 0.0
+    return float(statistics.variance(values))
 
 def _sample_skewness(values: Sequence[float]) -> float:
     n = len(values)
