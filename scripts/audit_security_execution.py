@@ -12,13 +12,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCAN_ROOTS = (
-    ROOT / "src" / "production",
-    ROOT / "src" / "paper",
-    ROOT / "src" / "risk",
-    ROOT / "src" / "decision",
-    ROOT / "src" / "monitoring",
-)
+SCAN_ROOTS = (ROOT / "src", ROOT / "scripts")
 OUT = ROOT / "evidence" / "security_execution_audit.json"
 
 PRIVATE_PATTERNS = (
@@ -44,9 +38,11 @@ def main() -> int:
         if not root.exists():
             continue
         for path in root.rglob("*.py"):
+            relative = str(path.relative_to(ROOT))
+            if relative == "scripts/audit_security_execution.py" or relative.startswith("tests/"):
+                continue
             scanned_files += 1
             text = path.read_text(encoding="utf-8", errors="replace")
-            relative = str(path.relative_to(ROOT))
             for pattern in PRIVATE_PATTERNS:
                 if pattern.search(text):
                     findings.append({"type": "private_credential_pattern", "file": relative, "pattern": pattern.pattern})
