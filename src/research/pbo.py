@@ -34,8 +34,7 @@ def pbo_cs_cv(
     Every S/2 block combination is used as IS; its complement is OOS.
     The IS winner is evaluated against all strategies on OOS. OOS ranks use
     average ranks for ties, with rank 1 being best. Relative rank is
-
-
+    omega = rank / (N + 1), keeping omega strictly inside (0, 1),
     and the logit is log(omega / (1 - omega)). PBO is the fraction of paths
     with logit < 0, i.e. the IS winner lands below the OOS median.
     """
