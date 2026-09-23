@@ -1,0 +1,83 @@
+name: quantitative-validation-evidence
+
+on:
+  push:
+    branches:
+      - agent/phase13-audit
+    paths:
+      - "src/research/dsr.py"
+      - "src/research/pbo.py"
+      - "scripts/run_phase10_backtest.py"
+      - "scripts/audit_paper_evidence.py"
+      - "tests/research/test_dsr.py"
+      - "tests/research/test_pbo.py"
+      - ".github/workflows/quantitative-validation-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/phase13-audit
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run DSR and CSCV mathematical tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python -m pytest -q tests/research/test_dsr.py tests/research/test_pbo.py tests/backtest/test_backtest_engine.py
+
+      - name: Audit existing 12-cycle paper evidence
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python scripts/audit_paper_evidence.py
+
+      - name: Run official Binance Vision historical validation
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python scripts/run_phase10_backtest.py \
+            --symbol BTCUSDT \
+            --start 2021-01-01T00:00:00Z \
+            --end 2026-09-23T00:00:00Z \
+            --output evidence/phase10_backtest.json
+
+      - name: Verify generated evidence is present
+        run: |
+          test -s evidence/phase10_backtest.json
+          python - <<'PY'
+          import json
+          p = json.load(open("evidence/phase10_backtest.json"))
+          assert p["source"].startswith("Binance Vision official")
+          assert p["data_integrity"]["passed"] is True
+          assert p["untouched_final_test"]["untouched"] is True
+          assert p["dsr"]["trial_count"] == 7
+          assert p["pbo_cscv"]["path_count"] > 0
+          assert p["real_money_execution"] is False
+          print(json.dumps({
+              "wfo": p["trading_performance_wfo"],
+              "final_test": p["untouched_final_test"]["performance"],
+              "dsr": p["dsr"],
+              "pbo_cscv": p["pbo_cscv"],
+          }, indent=2))
+          PY
+
+      - name: Commit validation evidence
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evidence/phase10_backtest.json
+          git diff --cached --quiet || git commit -m "Record quantitative validation evidence"
+          git push origin HEAD:agent/phase13-audit
