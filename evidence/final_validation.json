@@ -1,0 +1,44 @@
+{
+  "gates": {
+    "backtest": "PASS",
+    "calibration": "PASS",
+    "data_quality": "PASS",
+    "dsr": "PASS",
+    "ev_cost": "PASS",
+    "evidence_integrity": "PASS",
+    "execution_lock": "PASS",
+    "kill_switch": "INSUFFICIENT_EVIDENCE",
+    "lookahead_protection": "PASS",
+    "model": "PASS",
+    "monitoring": "INSUFFICIENT_EVIDENCE",
+    "oos": "PASS",
+    "paper_trading": "INSUFFICIENT_EVIDENCE",
+    "pbo_cscv": "PASS",
+    "regime": "INSUFFICIENT_EVIDENCE",
+    "reproducibility": "PASS",
+    "risk": "INSUFFICIENT_EVIDENCE",
+    "risk_controls": "INSUFFICIENT_EVIDENCE",
+    "robustness": "PASS",
+    "state_persistence": "INSUFFICIENT_EVIDENCE",
+    "trading_performance": "PASS",
+    "untouched_final_test": "PASS",
+    "walk_forward": "PASS"
+  },
+  "real_money_execution": false,
+  "reasons": [
+    "paper evidence has non-contiguous candle timestamps; 12/12 observations remain intact but are not one continuous 5m window",
+    "insufficient evidence: risk",
+    "insufficient evidence: regime",
+    "insufficient evidence: paper_trading",
+    "insufficient evidence: monitoring",
+    "insufficient evidence: risk_controls",
+    "insufficient evidence: kill_switch",
+    "insufficient evidence: state_persistence"
+  ],
+  "source_files": {
+    "paper_audit": "evidence/paper_evidence_audit.json",
+    "phase10_backtest": "evidence/phase10_backtest.json"
+  },
+  "status": "INSUFFICIENT_EVIDENCE",
+  "validation_tests_passed": false
+}
