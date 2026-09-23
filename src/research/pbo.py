@@ -35,7 +35,6 @@ def pbo_cs_cv(
     The IS winner is evaluated against all strategies on OOS. OOS ranks use
     average ranks for ties, with rank 1 being best. Relative rank is
 
-        omega = (rank - 0.5) / N
 
     and the logit is log(omega / (1 - omega)). PBO is the fraction of paths
     with logit < 0, i.e. the IS winner lands below the OOS median.
@@ -72,8 +71,9 @@ def pbo_cs_cv(
         better = sum(score > winner_score for score in oos_scores)
         equal = sum(score == winner_score for score in oos_scores)
         rank = 1.0 + better + (equal - 1.0) / 2.0
-        omega = (rank - 0.5) / n_strategies
-        omega = min(max(omega, 1e-12), 1.0 - 1e-12)
+        # Bailey/Lopez de Prado CSCV uses relative rank r/(N+1),
+        # keeping omega strictly inside (0, 1) before the logit.
+        omega = rank / (n_strategies + 1.0)
         logit = math.log(omega / (1.0 - omega))
         omega_values.append(omega)
         logit_values.append(logit)
