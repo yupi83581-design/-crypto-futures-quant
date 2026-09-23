@@ -17,6 +17,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: quantitative-validation-evidence-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -42,7 +46,13 @@ jobs:
       - name: Audit existing 12-cycle paper evidence
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: python scripts/audit_paper_evidence.py
+        run: |
+          set +e
+          python scripts/audit_paper_evidence.py > evidence/paper_evidence_audit.json
+          status=$?
+          set -e
+          test -s evidence/paper_evidence_audit.json
+          exit $status
 
       - name: Run official Binance Vision historical validation
         env:
@@ -74,10 +84,23 @@ jobs:
           }, indent=2))
           PY
 
+      - name: Generate final validation report
+        if: always()
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set +e
+          python scripts/run_final_validation.py
+          status=$?
+          set -e
+          test -s evidence/final_validation.json
+          exit $status
+
       - name: Commit validation evidence
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add evidence/phase10_backtest.json
-          git diff --cached --quiet || git commit -m "Record quantitative validation evidence"
+          git add evidence/phase10_backtest.json evidence/paper_evidence_audit.json evidence/final_validation.json
+          git diff --cached --quiet || git commit -m "Record final validation evidence"
           git push origin HEAD:agent/phase13-audit
