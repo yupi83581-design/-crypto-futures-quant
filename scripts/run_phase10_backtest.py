@@ -442,6 +442,14 @@ def main() -> None:
             "input_observations_before_trim": pbo_observations,
             "trimmed_observations": pbo_observations - pbo_usable_observations,
             "trim_policy": "drop trailing observations so aligned time-series length is divisible by block_count",
+            "trial_sharpes": trial_sharpes,
+            "selected_strategy_indices_unique": sorted(set(pbo.selected_strategy_indices)),
+            "selected_strategy_indices_constant": len(set(pbo.selected_strategy_indices)) == 1,
+            "omega_unique_count": len(set(pbo.omega_values)),
+            "logit_unique_count": len(set(pbo.logit_values)),
+            "input_sha256": hashlib.sha256(
+                json.dumps(pbo_inputs, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest(),
         },
         "robustness": {
             **asdict(robustness),
