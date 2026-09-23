@@ -1,50 +1,24 @@
 {
-  "status": "BLOCKED",
-  "generated_by": "CTO forensic repository audit",
-  "execution_verified": false,
-  "real_money_execution": false,
   "authorization": "DO_NOT_AUTHORIZE_REAL_MONEY",
+  "execution_verified": false,
   "gates": {
-    "accounting_forensic": "INSUFFICIENT_EVIDENCE",
-    "paper_evidence_forensic": "FAIL",
+    "accounting_forensic": "COMPLETE",
     "dsr_mathematical_audit": "FAIL",
+    "final_authorization": "FAIL",
+    "paper_evidence_forensic": "FAIL",
     "pbo_cscv_mathematical_audit": "INSUFFICIENT_EVIDENCE",
     "quantitative_validation": "FAIL",
     "risk_failure_tests": "INSUFFICIENT_EVIDENCE",
     "runtime_snapshot_audit": "INSUFFICIENT_EVIDENCE",
-    "security_execution_isolation": "INSUFFICIENT_EVIDENCE",
-    "final_authorization": "FAIL"
+    "security_execution_isolation": "PASS"
   },
-  "facts": {
-    "paper_events": 12,
-    "paper_cycle_range": [1, 12],
-    "paper_continuous_5m_window": false,
-    "paper_audit_status": "FAIL",
-    "paper_gap_seconds": [218100, 0, 104400],
-    "phase10_observed_sharpe": -0.31861705205297086,
-    "phase10_deflated_sharpe_probability": 0.0,
-    "phase10_raw_wfo_trade_count": 38469,
-    "phase10_raw_wfo_expectancy_per_trade": -0.0014004740123909774,
-    "phase10_raw_wfo_net_return": -1.0,
-    "phase10_final_test_trade_count": 996,
-    "phase10_final_test_expectancy_per_trade": -0.0013554769582219293,
-    "phase10_final_test_net_return": -0.7416565318453041,
-    "phase10_pbo_reported": 0.0,
-    "phase10_pbo_overfit_paths": 0,
-    "phase10_pbo_path_count": 70,
-    "phase10_pbo_selected_strategy_indices_are_constant": true,
-    "phase10_pbo_omega_values_are_constant": true,
-    "final_validation_artifact_is_stale_or_inconsistent": true,
-    "final_validation_artifact_reason": "It reports DSR PASS and trading_performance PASS while the current source evidence contains negative observed Sharpe and negative WFO/final-test expectancy/net return; validation_tests_passed is false."
+  "generated_by": "CTO forensic authorization generator",
+  "real_money_execution": false,
+  "source_files": {
+    "final_validation": "evidence/final_validation.json",
+    "paper_audit": "evidence/paper_evidence_audit.json",
+    "phase10": "evidence/phase10_backtest.json",
+    "security_audit": "evidence/security_execution_audit.json"
   },
-  "required_next_actions": [
-    "Run a fresh uninterrupted 12-event Codespace validation window and audit continuity.",
-    "Complete and inspect phase10_accounting_audit.json; preserve the original historical artifact.",
-    "Recompute DSR/PSR and PBO/CSCV from auditable trade/return series and verify the mathematical implementation, not only structural fields.",
-    "Run explicit risk failure tests for drawdown, stop distance, EV<=0, invalid inputs, and position cap.",
-    "Verify /snapshot live behavior in Codespace and record a runtime audit artifact.",
-    "Perform static execution-isolation audit and verify no exchange-order path or private trading credential is reachable from the paper runtime.",
-    "Regenerate final_validation.json only from verified current evidence and a genuinely passing validation test suite.",
-    "Keep real-money execution OFF until every required gate is PASS."
-  ]
+  "status": "BLOCKED"
 }
