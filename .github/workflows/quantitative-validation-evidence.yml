@@ -50,7 +50,7 @@ jobs:
         run: |
           python scripts/run_phase10_backtest.py \
             --symbol BTCUSDT \
-            --start 2025-01-01T00:00:00Z \
+            --start 2025-07-01T00:00:00Z \
             --end 2026-09-23T00:00:00Z \
             --output evidence/phase10_backtest.json
 
