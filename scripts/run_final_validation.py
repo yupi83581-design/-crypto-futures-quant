@@ -15,13 +15,15 @@ from pathlib import Path
 from src.research.final_validation import GateStatus, evaluate_final_gate
 
 ROOT = Path(__file__).resolve().parents[1]
-PHASE10 = ROOT / "evidence" / "phase10_backtest.json"
+HISTORICAL_PHASE10 = ROOT / "evidence" / "phase10_backtest.json"
+REFRESHED_PHASE10 = ROOT / "evidence" / "phase10_validation_refresh.json"
 PAPER_AUDIT = ROOT / "evidence" / "paper_evidence_audit.json"
 OUT = ROOT / "evidence" / "final_validation.json"
 
 
 def main() -> int:
-    phase10 = json.loads(PHASE10.read_text()) if PHASE10.exists() else None
+    phase10_path = REFRESHED_PHASE10 if REFRESHED_PHASE10.exists() else HISTORICAL_PHASE10
+    phase10 = json.loads(phase10_path.read_text()) if phase10_path.exists() else None
     paper = json.loads(PAPER_AUDIT.read_text()) if PAPER_AUDIT.exists() else None
     tests_passed = os.getenv("VALIDATION_TESTS_PASSED") == "1"
 
@@ -55,7 +57,7 @@ def main() -> int:
         evidence["oos"] = GateStatus.PASS.value if final.get("untouched") is True and final_profitable else (GateStatus.FAIL.value if final.get("untouched") is True and final_perf.get("trade_count", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value)
         evidence["regime"] = GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["robustness"] = GateStatus.PASS.value if robustness.get("stable") is True else GateStatus.FAIL.value
-        evidence["paper_trading"] = GateStatus.PASS.value if paper and paper.get("status") == "PASS" else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["paper_trading"] = GateStatus.PASS.value if paper and paper.get("status") == "PASS" else GateStatus.FAIL.value if paper else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["monitoring"] = GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["trading_performance"] = GateStatus.PASS.value if wfo_profitable and final.get("untouched") is True and final_profitable else (GateStatus.FAIL.value if perf.get("trade_count", 0) > 0 and final.get("untouched") is True else GateStatus.INSUFFICIENT_EVIDENCE.value)
         evidence["dsr"] = GateStatus.PASS.value if (0.0 < dsr.get("deflated_sharpe_probability", -1) <= 1.0 and dsr.get("observed_sharpe", 0.0) > 0.0 and dsr.get("trial_count", 0) == len(phase10.get("method", {}).get("strategy_universe", [])) and len(dsr.get("trial_universe", [])) == dsr.get("trial_count", 0)) else (GateStatus.FAIL.value if dsr.get("observed_sharpe") is not None else GateStatus.INSUFFICIENT_EVIDENCE.value)
@@ -105,7 +107,8 @@ def main() -> int:
         "real_money_execution": False,
         "validation_tests_passed": tests_passed,
         "source_files": {
-            "phase10_backtest": str(PHASE10.relative_to(ROOT)) if PHASE10.exists() else None,
+            "phase10_backtest": str(phase10_path.relative_to(ROOT)) if phase10_path.exists() else None,
+            "historical_phase10_backtest_preserved": HISTORICAL_PHASE10.exists(),
             "paper_audit": str(PAPER_AUDIT.relative_to(ROOT)) if PAPER_AUDIT.exists() else None,
         },
     }
