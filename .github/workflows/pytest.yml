@@ -80,27 +80,27 @@ jobs:
           assert p["real_money_execution"] is False
           print(json.dumps({"wfo":p["trading_performance_wfo"],"final_test":p["untouched_final_test"]["performance"],"dsr":p["dsr"],"pbo_cscv":p["pbo_cscv"]}, indent=2))
           PY
-      - name: Commit quantitative evidence
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add evidence/phase10_backtest.json
-          git diff --cached --quiet || git commit -m "Record quantitative validation evidence"
-          git push origin HEAD:agent/phase13-audit
+      - name: Archive quantitative evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantitative-validation-${{ github.run_id }}
+          path: evidence/phase10_backtest.json
+          if-no-files-found: error
       - name: Generate evidence-driven final validation report
         continue-on-error: true
         env:
           PYTHONPATH: ${{ github.workspace }}
           VALIDATION_TESTS_PASSED: "1"
         run: python scripts/run_final_validation.py
-      - name: Commit final validation report
+      - name: Archive final validation report
         if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add evidence/final_validation.json evidence/paper_evidence_audit.json
-          git diff --cached --quiet || git commit -m "Record final validation gate report"
-          git push origin HEAD:agent/phase13-audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-validation-${{ github.run_id }}
+          path: |
+            evidence/final_validation.json
+            evidence/paper_evidence_audit.json
+          if-no-files-found: error
       - name: Enforce final validation status
         if: always()
         run: |
