@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HISTORICAL_PHASE10 = ROOT / "evidence" / "phase10_backtest.json"
 REFRESHED_PHASE10 = ROOT / "evidence" / "phase10_validation_refresh.json"
 PAPER_AUDIT = ROOT / "evidence" / "paper_evidence_audit.json"
+SECURITY_AUDIT = ROOT / "evidence" / "security_execution_audit.json"
 OUT = ROOT / "evidence" / "final_validation.json"
 
 
@@ -25,6 +26,7 @@ def main() -> int:
     phase10_path = REFRESHED_PHASE10 if REFRESHED_PHASE10.exists() else HISTORICAL_PHASE10
     phase10 = json.loads(phase10_path.read_text()) if phase10_path.exists() else None
     paper = json.loads(PAPER_AUDIT.read_text()) if PAPER_AUDIT.exists() else None
+    security = json.loads(SECURITY_AUDIT.read_text()) if SECURITY_AUDIT.exists() else None
     tests_passed = os.getenv("VALIDATION_TESTS_PASSED") == "1"
 
     evidence: dict[str, str] = {}
@@ -70,6 +72,7 @@ evidence["pbo_cscv"] = GateStatus.PASS.value if (pbo.get("path_count", 0) > 0 an
         evidence["evidence_integrity"] = GateStatus.PASS.value if integrity.get("passed") else GateStatus.FAIL.value
         evidence["reproducibility"] = GateStatus.PASS.value if phase10.get("reproducibility", {}).get("git_commit") not in (None, "UNAVAILABLE") else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["execution_lock"] = GateStatus.PASS.value if phase10.get("real_money_execution") is False else GateStatus.FAIL.value
+        evidence["security"] = GateStatus.PASS.value if security and security.get("status") == "PASS" else GateStatus.FAIL.value if security else GateStatus.INSUFFICIENT_EVIDENCE.value
     else:
         for gate in (
             "data_quality", "model", "calibration", "ev_cost", "risk", "backtest",
@@ -77,7 +80,7 @@ evidence["pbo_cscv"] = GateStatus.PASS.value if (pbo.get("path_count", 0) > 0 an
             "monitoring", "trading_performance", "dsr", "pbo_cscv",
             "lookahead_protection", "untouched_final_test", "risk_controls",
             "kill_switch", "state_persistence", "evidence_integrity",
-            "reproducibility",
+            "reproducibility", "security",
         ):
             evidence[gate] = GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["execution_lock"] = GateStatus.PASS.value
@@ -110,6 +113,7 @@ evidence["pbo_cscv"] = GateStatus.PASS.value if (pbo.get("path_count", 0) > 0 an
             "phase10_backtest": str(phase10_path.relative_to(ROOT)) if phase10_path.exists() else None,
             "historical_phase10_backtest_preserved": HISTORICAL_PHASE10.exists(),
             "paper_audit": str(PAPER_AUDIT.relative_to(ROOT)) if PAPER_AUDIT.exists() else None,
+            "security_audit": str(SECURITY_AUDIT.relative_to(ROOT)) if SECURITY_AUDIT.exists() else None,
         },
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
