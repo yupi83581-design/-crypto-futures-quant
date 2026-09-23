@@ -86,3 +86,14 @@ jobs:
           git add evidence/phase10_backtest.json
           git diff --cached --quiet || git commit -m "Record quantitative validation evidence"
           git push origin HEAD:agent/phase13-audit
+      - name: Generate evidence-driven final validation report
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python scripts/run_final_validation.py || true
+      - name: Commit final validation report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evidence/final_validation.json evidence/paper_evidence_audit.json
+          git diff --cached --quiet || git commit -m "Record final validation gate report"
+          git push origin HEAD:agent/phase13-audit
