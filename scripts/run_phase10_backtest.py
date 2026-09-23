@@ -202,6 +202,28 @@ def trades_from_predictions(probabilities: list[float], observations: list[dict]
     return trades
 
 
+def period_returns_from_predictions(
+    probabilities: list[float],
+    observations: list[dict],
+    threshold: float,
+) -> list[float]:
+    """Return one aligned return per evaluation period for CSCV/PBO."""
+    returns: list[float] = []
+    usable = min(len(probabilities), max(0, len(observations) - LABEL_HORIZON))
+    for idx in range(usable):
+        if probabilities[idx] < threshold:
+            returns.append(0.0)
+            continue
+        entry = observations[idx]
+        exit_rec = observations[idx + LABEL_HORIZON]
+        net = (
+            (float(exit_rec["close"]) - float(entry["close"])) / float(entry["close"])
+            - 2.0 * (FEE + SLIPPAGE)
+        )
+        returns.append(net)
+    return returns
+
+
 def equity_curve(returns: list[float], initial: float = 100_000.0) -> list[float]:
     equity = initial
     curve = [equity]
@@ -247,11 +269,12 @@ def performance(trades: list[Trade]) -> dict:
     }
 
 
-def strategy_returns_for_wfo(records: list[dict], development_end: datetime) -> tuple[dict[float, list[Trade]], int]:
+def strategy_returns_for_wfo(records: list[dict], development_end: datetime) -> tuple[dict[float, list[Trade]], dict[float, list[float]], int]:
     development = [r for r in records if parse_time(r["event_time"]) < development_end]
     step = TEST_DAYS * 24 * 12
     train_size = TRAIN_DAYS * 24 * 12
     all_trades = {threshold: [] for threshold in THRESHOLDS}
+    all_period_returns = {threshold: [] for threshold in THRESHOLDS}
     folds = 0
     cursor = train_size
     while cursor + step <= len(development):
@@ -260,9 +283,10 @@ def strategy_returns_for_wfo(records: list[dict], development_end: datetime) -> 
         probabilities, observations = predict_fold(train, test)
         for threshold in THRESHOLDS:
             all_trades[threshold].extend(trades_from_predictions(probabilities, observations, threshold))
+            all_period_returns[threshold].extend(period_returns_from_predictions(probabilities, observations, threshold))
         folds += 1
         cursor += step
-    return all_trades, folds
+    return all_trades, all_period_returns, folds
 
 
 def main() -> None:
@@ -280,9 +304,9 @@ def main() -> None:
     if final_cut <= start:
         raise SystemExit("date range is too short for untouched final test set")
 
-    wfo_trades, fold_count = strategy_returns_for_wfo(records, final_cut)
+    wfo_trades, wfo_period_returns, fold_count = strategy_returns_for_wfo(records, final_cut)
     baseline_wfo_trades = wfo_trades[0.50]
-    wfo_returns = {threshold: [trade.net_return for trade in trades] for threshold, trades in wfo_trades.items()}
+    wfo_returns = {threshold: returns for threshold, returns in wfo_period_returns.items()}
     if len(baseline_wfo_trades) < 30:
         raise SystemExit("insufficient WFO trades for performance evidence")
 
