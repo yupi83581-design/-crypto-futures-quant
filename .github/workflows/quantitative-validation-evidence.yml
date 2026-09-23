@@ -15,8 +15,6 @@ on:
       - "scripts/run_cto_forensic_authorization.py"
       - "tests/production/test_runtime.py"
       - "evidence/paper_trading.jsonl"
-      - "evidence/paper_evidence_audit.json"
-      - "evidence/phase10_accounting_audit.json"
       - ".github/workflows/quantitative-validation-evidence.yml"
   workflow_dispatch:
 
