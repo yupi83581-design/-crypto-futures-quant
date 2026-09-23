@@ -27,7 +27,12 @@ jobs:
       - name: Run Phase 10
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: python scripts/run_phase10_backtest.py
+        run: |
+          python scripts/run_phase10_backtest.py \
+            --symbol BTCUSDT \
+            --start 2025-07-01T00:00:00Z \
+            --end 2026-09-23T00:00:00Z \
+            --output evidence/phase10_backtest.json
       - name: Commit measured result
         run: |
           git config user.name "github-actions[bot]"
