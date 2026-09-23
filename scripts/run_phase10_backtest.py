@@ -246,7 +246,7 @@ def performance(trades: list[Trade]) -> dict:
     }
 
 
-def strategy_returns_for_wfo(records: list[dict], development_end: datetime) -> tuple[dict[float, list[float]], int]:
+def strategy_returns_for_wfo(records: list[dict], development_end: datetime) -> tuple[dict[float, list[Trade]], int]:
     development = [r for r in records if parse_time(r["event_time"]) < development_end]
     step = TEST_DAYS * 24 * 12
     train_size = TRAIN_DAYS * 24 * 12
@@ -261,7 +261,7 @@ def strategy_returns_for_wfo(records: list[dict], development_end: datetime) -> 
             all_trades[threshold].extend(trades_from_predictions(probabilities, observations, threshold))
         folds += 1
         cursor += step
-    return {t: [trade.net_return for trade in trades] for t, trades in all_trades.items()}, folds
+    return all_trades, folds
 
 
 def main() -> None:
@@ -279,10 +279,9 @@ def main() -> None:
     if final_cut <= start:
         raise SystemExit("date range is too short for untouched final test set")
 
-    wfo_returns, fold_count = strategy_returns_for_wfo(records, final_cut)
-    baseline_wfo_trades = [
-        Trade("", 0.0, "", 0.0, r) for r in wfo_returns[0.50]
-    ]
+    wfo_trades, fold_count = strategy_returns_for_wfo(records, final_cut)
+    baseline_wfo_trades = wfo_trades[0.50]
+    wfo_returns = {threshold: [trade.net_return for trade in trades] for threshold, trades in wfo_trades.items()}
     if len(baseline_wfo_trades) < 30:
         raise SystemExit("insufficient WFO trades for performance evidence")
 
