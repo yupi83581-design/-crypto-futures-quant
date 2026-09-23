@@ -33,7 +33,7 @@ def pbo_cs_cv(
     observations are split into S equal contiguous blocks (S must be even).
     Every S/2 block combination is used as IS; its complement is OOS.
     The IS winner is evaluated against all strategies on OOS. OOS ranks use
-    average ranks for ties, with rank 1 being best. Relative rank is
+    average ranks for ties, with rank 1 being worst. Relative rank is
     omega = rank / (N + 1), keeping omega strictly inside (0, 1),
     and the logit is log(omega / (1 - omega)). PBO is the fraction of paths
     with logit < 0, i.e. the IS winner lands below the OOS median.
@@ -67,9 +67,11 @@ def pbo_cs_cv(
             for s in series
         ]
         winner_score = oos_scores[winner]
-        better = sum(score > winner_score for score in oos_scores)
+        worse = sum(score < winner_score for score in oos_scores)
         equal = sum(score == winner_score for score in oos_scores)
-        rank = 1.0 + better + (equal - 1.0) / 2.0
+        # Rank 1 is worst and rank N is best, matching CSCV's
+        # overfitting orientation: low OOS rank => negative logit.
+        rank = 1.0 + worse + (equal - 1.0) / 2.0
         # Bailey/Lopez de Prado CSCV uses relative rank r/(N+1),
         # keeping omega strictly inside (0, 1) before the logit.
         omega = rank / (n_strategies + 1.0)
