@@ -25,6 +25,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from src.models.baseline_pipeline import BaselineRSIPipeline
+from src.models.calibration import evaluate_calibration
 from src.research.dsr import deflated_sharpe_ratio
 from src.research.pbo import pbo_cs_cv
 from src.research.robustness import evaluate_robustness
@@ -324,10 +325,13 @@ def main() -> None:
     final_test = [r for r in records if parse_time(r["event_time"]) >= final_cut]
     pipeline = BaselineRSIPipeline(rsi_period=RSI_PERIOD, label_horizon=LABEL_HORIZON)
     pipeline.fit(development)
-    probabilities = pipeline.evaluate(development[-RSI_PERIOD:] + final_test).probabilities
+    final_eval = pipeline.evaluate(development[-RSI_PERIOD:] + final_test)
+    probabilities = final_eval.probabilities
     usable = max(0, len(final_test) - LABEL_HORIZON)
     final_probs = list(probabilities[-(usable + LABEL_HORIZON):-LABEL_HORIZON]) if usable else []
+    final_actual = list(final_eval.actual_labels[-(usable + LABEL_HORIZON):-LABEL_HORIZON]) if usable else []
     final_trades = trades_from_predictions(final_probs, final_test[:usable], 0.50)
+    calibration = evaluate_calibration(final_actual, final_probs) if final_probs else None
 
     result = {
         "status": "COMPLETE",
@@ -347,6 +351,7 @@ def main() -> None:
             "selection_threshold": 0.50,
         },
         "trading_performance_wfo": performance(baseline_wfo_trades),
+        "calibration": calibration.__dict__ if calibration is not None else None,
         "untouched_final_test": {
             "start": final_cut.isoformat(),
             "end": end.isoformat(),
