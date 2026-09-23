@@ -42,6 +42,7 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: python -m pytest -q tests/research/test_dsr.py tests/research/test_pbo.py tests/backtest/test_backtest_engine.py
+          echo "VALIDATION_TESTS_PASSED=1" >> "$GITHUB_ENV"
 
       - name: Audit existing 12-cycle paper evidence
         env:
