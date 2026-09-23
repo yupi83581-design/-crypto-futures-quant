@@ -35,3 +35,21 @@ def test_deterministic():
         [0.05,0.06,0.04,0.05,0.06,0.04,0.05,0.06],
     ]
     assert pbo_cs_cv(values, block_count=4) == pbo_cs_cv(values, block_count=4)
+
+
+def test_best_oos_winner_is_not_counted_as_overfit():
+    result = pbo_cs_cv(
+        [
+            [0.10, 0.11, 0.09, 0.10, 0.11, 0.09, 0.10, 0.11],
+            [0.01, 0.02, 0.00, 0.01, 0.02, 0.00, 0.01, 0.02],
+        ],
+        block_count=4,
+    )
+    assert all(value > 0.5 for value in result.omega_values)
+    assert result.overfit_paths == 0
+    assert result.pbo == 0.0
+
+
+def test_relative_rank_uses_n_plus_one():
+    result = pbo_cs_cv([[0.1] * 8, [0.0] * 8], block_count=4)
+    assert all(value == pytest.approx(2.0 / 3.0) for value in result.omega_values)
