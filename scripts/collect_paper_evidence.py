@@ -83,6 +83,16 @@ def main() -> None:
     }
 
     close = float(records[-1]["close"])
+    last_event_time = None
+    if LEDGER.exists():
+        for line in reversed(LEDGER.read_text(encoding="utf-8").splitlines()):
+            if line.strip():
+                last_event_time = json.loads(line)["candle_event_time"]
+                break
+    if last_event_time is not None and records[-1]["event_time"] <= last_event_time:
+        raise RuntimeError(
+            "latest closed candle is not newer than the last recorded evidence event"
+        )
     if state["position"] is not None:
         pos = state["position"]
         pnl = (close - pos["entry_price"]) * pos["quantity"]
