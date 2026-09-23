@@ -42,22 +42,22 @@ def main() -> int:
         evidence["model"] = GateStatus.PASS.value if perf.get("trade_count", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["calibration"] = GateStatus.PASS.value if calibration and math.isfinite(float(calibration.get("brier_score", float("nan")))) else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["ev_cost"] = GateStatus.PASS.value if phase10.get("method", {}).get("fee_assumption") is not None and phase10.get("method", {}).get("slippage_assumption") is not None else GateStatus.INSUFFICIENT_EVIDENCE.value
-        evidence["risk"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["risk"] = GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["backtest"] = GateStatus.PASS.value if perf.get("trade_count", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["walk_forward"] = GateStatus.PASS.value if wf.get("folds", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["oos"] = GateStatus.PASS.value if final.get("untouched") is True and final.get("performance", {}).get("trade_count", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value
-        evidence["regime"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["regime"] = GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["robustness"] = GateStatus.PASS.value if robustness.get("stable") is True else GateStatus.FAIL.value
         evidence["paper_trading"] = GateStatus.PASS.value if paper and paper.get("status") == "PASS" else GateStatus.INSUFFICIENT_EVIDENCE.value
-        evidence["monitoring"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["monitoring"] = GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["trading_performance"] = GateStatus.PASS.value if perf.get("trade_count", 0) > 0 and final.get("untouched") is True else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["dsr"] = GateStatus.PASS.value if (0.0 <= dsr.get("deflated_sharpe_probability", -1) <= 1.0 and dsr.get("trial_count", 0) == len(phase10.get("method", {}).get("strategy_universe", [])) and len(dsr.get("trial_universe", [])) == dsr.get("trial_count", 0)) else GateStatus.FAIL.value
         evidence["pbo_cscv"] = GateStatus.PASS.value if (pbo.get("path_count", 0) > 0 and len(pbo.get("omega_values", [])) == pbo.get("path_count", 0) and len(pbo.get("logit_values", [])) == pbo.get("path_count", 0) and pbo.get("strategy_count", 0) == dsr.get("trial_count", 0) and pbo.get("observations", 0) == pbo.get("input_observations_before_trim", pbo.get("observations", 0)) - pbo.get("trimmed_observations", 0) and 0 <= pbo.get("trimmed_observations", -1) < pbo.get("block_count", 0) and pbo.get("trim_policy") == "drop trailing observations so aligned time-series length is divisible by block_count") else GateStatus.FAIL.value
         evidence["lookahead_protection"] = GateStatus.PASS.value if (wf.get("lookahead_protection") is True and wf.get("purge_bars") == wf.get("label_horizon") and wf.get("embargo_bars") == wf.get("label_horizon")) else GateStatus.FAIL.value
         evidence["untouched_final_test"] = GateStatus.PASS.value if final.get("untouched") is True else GateStatus.FAIL.value
-        evidence["risk_controls"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
-        evidence["kill_switch"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
-        evidence["state_persistence"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["risk_controls"] = GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["kill_switch"] = GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["state_persistence"] = GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["evidence_integrity"] = GateStatus.PASS.value if integrity.get("passed") else GateStatus.FAIL.value
         evidence["reproducibility"] = GateStatus.PASS.value if phase10.get("reproducibility", {}).get("git_commit") not in (None, "UNAVAILABLE") else GateStatus.INSUFFICIENT_EVIDENCE.value
         evidence["execution_lock"] = GateStatus.PASS.value if phase10.get("real_money_execution") is False else GateStatus.FAIL.value
