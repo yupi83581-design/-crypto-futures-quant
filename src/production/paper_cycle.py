@@ -22,8 +22,9 @@ from src.risk.engine import RiskConfig, RiskResult, assess_risk
 class PaperCycleConfig:
     reward_multiple: float = 2.0
     reward_fraction: float = 0.02
-    fee: float = 0.0
-    slippage: float = 0.0
+    # Conservative public-reference assumptions; not account-specific fees.
+    fee: float = 0.0005
+    slippage: float = 0.0002
     decision: DecisionConfig = DecisionConfig()
     risk: RiskConfig = RiskConfig()
 
