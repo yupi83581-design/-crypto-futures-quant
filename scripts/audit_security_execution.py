@@ -25,8 +25,7 @@ ORDER_PATTERNS = (
     re.compile(r"futures?_create_order", re.IGNORECASE),
     re.compile(r"create_order\s*\(", re.IGNORECASE),
     re.compile(r"new_order\s*\(", re.IGNORECASE),
-    re.compile(r"/order(?:\?|\s|$)", re.IGNORECASE),
-    re.compile(r"ORDER\s*\(?!BOOK)", re.IGNORECASE),
+    re.compile(r"/fapi/v1/order(?:\?|\s|$)", re.IGNORECASE),
 )
 
 
