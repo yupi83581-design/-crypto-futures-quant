@@ -58,12 +58,12 @@ def pbo_cs_cv(
     for is_blocks in combinations:
         oos_blocks = tuple(i for i in range(block_count) if i not in is_blocks)
         is_scores = [
-            statistics.mean(_concat_blocks(s, is_blocks, block_size))
+            _sharpe(_concat_blocks(s, is_blocks, block_size))
             for s in series
         ]
         winner = max(range(n_strategies), key=lambda i: (is_scores[i], -i))
         oos_scores = [
-            statistics.mean(_concat_blocks(s, oos_blocks, block_size))
+            _sharpe(_concat_blocks(s, oos_blocks, block_size))
             for s in series
         ]
         winner_score = oos_scores[winner]
@@ -123,3 +123,17 @@ def _validate_inputs(strategy_returns: Sequence[Sequence[float]], block_count: i
             values.append(value)
         result.append(values)
     return result
+
+
+def _sharpe(values: Sequence[float]) -> float:
+    if len(values) < 2:
+        raise ValueError("each CSCV path needs at least 2 observations")
+    mean_value = statistics.mean(values)
+    stdev = statistics.stdev(values)
+    if stdev == 0.0:
+        if mean_value > 0.0:
+            return math.inf
+        if mean_value < 0.0:
+            return -math.inf
+        return 0.0
+    return mean_value / stdev
