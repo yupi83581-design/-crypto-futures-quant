@@ -20,7 +20,7 @@ import subprocess
 import urllib.error
 import urllib.request
 import zipfile
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -179,16 +179,44 @@ def validate_ohlcv_integrity(records: list[dict]) -> dict:
     }
 
 
-def predict_fold(train: list[dict], test: list[dict]) -> tuple[list[float], list[dict]]:
-    pipeline = BaselineRSIPipeline(rsi_period=RSI_PERIOD, label_horizon=LABEL_HORIZON)
-    pipeline.fit(train)
-    warmup = train[-RSI_PERIOD:]
-    evaluation = pipeline.evaluate(warmup + test)
-    # The warmup prefix contributes RSI state but is not part of the test ledger.
-    usable = min(len(test) - LABEL_HORIZON, len(evaluation.probabilities) - LABEL_HORIZON)
+def predict_fold(
+    train: list[dict],
+    test: list[dict],
+) -> tuple[list[float], list[dict]]:
+    """Generate a purged/embargoed OOS fold without future-label leakage.
+
+    The last LABEL_HORIZON training bars are purged because their labels would
+    consume closes inside the following test interval. The first
+    LABEL_HORIZON test bars are then embargoed so the evaluation starts after
+    that purge boundary. Both rules are deterministic and apply identically
+    to every WFO fold.
+    """
+    purge_bars = LABEL_HORIZON
+    embargo_bars = LABEL_HORIZON
+    if len(train) <= purge_bars or len(test) <= embargo_bars:
+        return [], []
+
+    fit_train = train[:-purge_bars]
+    evaluation_test = test[embargo_bars:]
+    pipeline = BaselineRSIPipeline(
+        rsi_period=RSI_PERIOD,
+        label_horizon=LABEL_HORIZON,
+    )
+    pipeline.fit(fit_train)
+    warmup = fit_train[-RSI_PERIOD:]
+    evaluation = pipeline.evaluate(warmup + evaluation_test)
+
+    # The warmup prefix contributes RSI state but is not part of the OOS ledger.
+    usable = min(
+        len(evaluation_test) - LABEL_HORIZON,
+        len(evaluation.probabilities) - LABEL_HORIZON,
+    )
     if usable <= 0:
         return [], []
-    return list(evaluation.probabilities[-(usable + LABEL_HORIZON):-LABEL_HORIZON]), test[:usable]
+    probabilities = list(
+        evaluation.probabilities[-(usable + LABEL_HORIZON):-LABEL_HORIZON]
+    )
+    return probabilities, evaluation_test[:usable]
 
 
 def trades_from_predictions(probabilities: list[float], observations: list[dict], threshold: float) -> list[Trade]:
@@ -332,14 +360,33 @@ def main() -> None:
     # Untouched final test: fixed threshold 0.50, selected before final evaluation.
     development = [r for r in records if parse_time(r["event_time"]) < final_cut]
     final_test = [r for r in records if parse_time(r["event_time"]) >= final_cut]
-    pipeline = BaselineRSIPipeline(rsi_period=RSI_PERIOD, label_horizon=LABEL_HORIZON)
-    pipeline.fit(development)
-    final_eval = pipeline.evaluate(development[-RSI_PERIOD:] + final_test)
+    purge_bars = LABEL_HORIZON
+    embargo_bars = LABEL_HORIZON
+    if len(development) <= purge_bars or len(final_test) <= embargo_bars:
+        raise SystemExit("insufficient final-test data after purge/embargo")
+    final_fit = development[:-purge_bars]
+    final_eval_test = final_test[embargo_bars:]
+    pipeline = BaselineRSIPipeline(
+        rsi_period=RSI_PERIOD,
+        label_horizon=LABEL_HORIZON,
+    )
+    pipeline.fit(final_fit)
+    final_eval = pipeline.evaluate(final_fit[-RSI_PERIOD:] + final_eval_test)
     probabilities = final_eval.probabilities
-    usable = max(0, len(final_test) - LABEL_HORIZON)
-    final_probs = list(probabilities[-(usable + LABEL_HORIZON):-LABEL_HORIZON]) if usable else []
-    final_actual = list(final_eval.actual_labels[-(usable + LABEL_HORIZON):-LABEL_HORIZON]) if usable else []
-    final_trades = trades_from_predictions(final_probs, final_test[:usable], 0.50)
+    usable = max(0, len(final_eval_test) - LABEL_HORIZON)
+    final_probs = (
+        list(probabilities[-(usable + LABEL_HORIZON):-LABEL_HORIZON])
+        if usable else []
+    )
+    final_actual = (
+        list(final_eval.actual_labels[-(usable + LABEL_HORIZON):-LABEL_HORIZON])
+        if usable else []
+    )
+    final_trades = trades_from_predictions(
+        final_probs,
+        final_eval_test[:usable],
+        0.50,
+    )
     calibration = evaluate_calibration(final_actual, final_probs) if final_probs else None
 
     result = {
@@ -356,11 +403,13 @@ def main() -> None:
             "train_days": TRAIN_DAYS,
             "test_days": TEST_DAYS,
             "label_horizon": LABEL_HORIZON,
+            "purge_bars": purge_bars,
+            "embargo_bars": embargo_bars,
             "lookahead_protection": True,
             "selection_threshold": 0.50,
         },
         "trading_performance_wfo": performance(baseline_wfo_trades),
-        "calibration": calibration.__dict__ if calibration is not None else None,
+        "calibration": asdict(calibration) if calibration is not None else None,
         "untouched_final_test": {
             "start": final_cut.isoformat(),
             "end": end.isoformat(),
@@ -370,18 +419,18 @@ def main() -> None:
             "untouched": True,
         },
         "dsr": {
-            **dsr.__dict__,
+            **asdict(dsr),
             "trial_count_basis": "complete explicit threshold strategy universe",
             "trial_universe": list(THRESHOLDS),
         },
         "pbo_cscv": {
-            **pbo.__dict__,
+            **asdict(pbo),
             "input_observations_before_trim": pbo_observations,
             "trimmed_observations": pbo_observations - pbo_usable_observations,
             "trim_policy": "drop trailing observations so aligned time-series length is divisible by block_count",
         },
         "robustness": {
-            **robustness.__dict__,
+            **asdict(robustness),
             "perturbations": [0.475, 0.525],
             "tolerance": 0.05,
             "metric": "WFO net return",
