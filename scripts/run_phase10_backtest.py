@@ -29,6 +29,8 @@ from src.models.calibration import evaluate_calibration
 from src.research.dsr import deflated_sharpe_ratio
 from src.research.pbo import pbo_cs_cv
 from src.research.robustness import evaluate_robustness
+from src.research.bootstrap import bootstrap_trade_returns
+from src.research.regime_evaluation import evaluate_regime_impact
 
 ARCHIVE = "https://data.binance.vision/data/futures/um/monthly/klines/{symbol}/5m/{symbol}-5m-{year:04d}-{month:02d}.zip"
 LABEL_HORIZON = 3
@@ -364,6 +366,15 @@ def main() -> None:
         trial_count=len(THRESHOLDS),
         trial_sharpes=trial_sharpes,
     )
+    monte_carlo = bootstrap_trade_returns(
+        trade_returns=[trade.net_return for trade in baseline_wfo_trades],
+        samples=2000,
+        confidence_level=0.95,
+        seed=0,
+    )
+    regime_prices = [float(record["close"]) for record in records]
+    regime_evaluation = evaluate_regime_impact(regime_prices)
+
     robustness = evaluate_robustness(
         base_parameters=0.50,
         perturbations=(0.475, 0.525),
@@ -450,6 +461,14 @@ def main() -> None:
             "input_sha256": hashlib.sha256(
                 json.dumps(pbo_inputs, sort_keys=True, separators=(",", ":")).encode()
             ).hexdigest(),
+        },
+        "monte_carlo": {
+            **asdict(monte_carlo),
+            "source": "WFO trade returns",
+            "seed": 0,
+        },
+        "regime_evaluation": {
+            **asdict(regime_evaluation),
         },
         "robustness": {
             **asdict(robustness),
