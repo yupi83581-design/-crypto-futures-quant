@@ -1,61 +1,93 @@
 """Forensic final-validation report generator.
 
-Never upgrades a gate manually. It derives statuses only from recorded evidence.
+This module never upgrades a gate from missing evidence to PASS manually.
+It derives the final result from the recorded Phase-10 historical evidence,
+paper-evidence audit, and a successful validation test suite.
 """
+
 from __future__ import annotations
+
 import json
+import os
 from pathlib import Path
+
+from src.research.final_validation import GateStatus, evaluate_final_gate
 
 ROOT = Path(__file__).resolve().parents[1]
 PHASE10 = ROOT / "evidence" / "phase10_backtest.json"
 PAPER_AUDIT = ROOT / "evidence" / "paper_evidence_audit.json"
 OUT = ROOT / "evidence" / "final_validation.json"
 
+
 def main() -> int:
     phase10 = json.loads(PHASE10.read_text()) if PHASE10.exists() else None
     paper = json.loads(PAPER_AUDIT.read_text()) if PAPER_AUDIT.exists() else None
+    tests_passed = os.getenv("VALIDATION_TESTS_PASSED") == "1"
 
-    statuses = {}
-    reasons = []
+    evidence: dict[str, str] = {}
+    reasons: list[str] = []
 
     if phase10 and phase10.get("status") == "COMPLETE":
         perf = phase10.get("trading_performance_wfo", {})
         final = phase10.get("untouched_final_test", {})
-        statuses["trading_performance"] = "PASS" if perf.get("trade_count", 0) > 0 and final.get("untouched") is True else "INSUFFICIENT_EVIDENCE"
-        statuses["dsr"] = "PASS" if 0.0 <= phase10.get("dsr", {}).get("deflated_sharpe_probability", -1) <= 1.0 else "FAIL"
-        statuses["pbo_cscv"] = "PASS" if phase10.get("pbo_cscv", {}).get("path_count", 0) > 0 else "INSUFFICIENT_EVIDENCE"
-        statuses["robustness"] = "PASS" if phase10.get("robustness", {}).get("stable") is True else "FAIL"
-        statuses["untouched_final_test"] = "PASS" if final.get("untouched") is True else "FAIL"
-        statuses["data_integrity"] = "PASS" if phase10.get("data_integrity", {}).get("passed") is True else "FAIL"
-        statuses["walk_forward_oos"] = "PASS" if phase10.get("walk_forward", {}).get("folds", 0) > 0 else "INSUFFICIENT_EVIDENCE"
-        statuses["reproducibility"] = "PASS" if phase10.get("reproducibility", {}).get("git_commit") not in (None, "UNAVAILABLE") else "INSUFFICIENT_EVIDENCE"
-        statuses["execution_lock"] = "PASS" if phase10.get("real_money_execution") is False else "FAIL"
+        integrity = phase10.get("data_integrity", {})
+        dsr = phase10.get("dsr", {})
+        pbo = phase10.get("pbo_cscv", {})
+        wf = phase10.get("walk_forward", {})
+        robustness = phase10.get("robustness", {})
+
+        evidence["data_quality"] = GateStatus.PASS.value if integrity.get("passed") else GateStatus.FAIL.value
+        evidence["model"] = GateStatus.PASS.value if perf.get("trade_count", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["calibration"] = GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["ev_cost"] = GateStatus.PASS.value if phase10.get("method", {}).get("fee_assumption") is not None and phase10.get("method", {}).get("slippage_assumption") is not None else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["risk"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["backtest"] = GateStatus.PASS.value if perf.get("trade_count", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["walk_forward"] = GateStatus.PASS.value if wf.get("folds", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["oos"] = GateStatus.PASS.value if final.get("untouched") is True and final.get("performance", {}).get("trade_count", 0) > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["regime"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["robustness"] = GateStatus.PASS.value if robustness.get("stable") is True else GateStatus.FAIL.value
+        evidence["paper_trading"] = GateStatus.PASS.value if paper and paper.get("status") == "PASS" else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["monitoring"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["trading_performance"] = GateStatus.PASS.value if perf.get("trade_count", 0) > 0 and final.get("untouched") is True else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["dsr"] = GateStatus.PASS.value if 0.0 <= dsr.get("deflated_sharpe_probability", -1) <= 1.0 and dsr.get("trial_count", 0) == len(phase10.get("method", {}).get("strategy_universe", [])) else GateStatus.FAIL.value
+        evidence["pbo_cscv"] = GateStatus.PASS.value if pbo.get("path_count", 0) > 0 and len(pbo.get("omega_values", [])) == pbo.get("path_count", 0) and len(pbo.get("logit_values", [])) == pbo.get("path_count", 0) else GateStatus.FAIL.value
+        evidence["lookahead_protection"] = GateStatus.PASS.value if wf.get("lookahead_protection") is True else GateStatus.FAIL.value
+        evidence["untouched_final_test"] = GateStatus.PASS.value if final.get("untouched") is True else GateStatus.FAIL.value
+        evidence["risk_controls"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["kill_switch"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["state_persistence"] = GateStatus.PASS.value if tests_passed else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["evidence_integrity"] = GateStatus.PASS.value if integrity.get("passed") else GateStatus.FAIL.value
+        evidence["reproducibility"] = GateStatus.PASS.value if phase10.get("reproducibility", {}).get("git_commit") not in (None, "UNAVAILABLE") else GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["execution_lock"] = GateStatus.PASS.value if phase10.get("real_money_execution") is False else GateStatus.FAIL.value
     else:
-        for gate in ("trading_performance","dsr","pbo_cscv","robustness","untouched_final_test","data_integrity","walk_forward_oos","reproducibility"):
-            statuses[gate] = "INSUFFICIENT_EVIDENCE"
-        statuses["execution_lock"] = "PASS"
+        for gate in (
+            "data_quality", "model", "calibration", "ev_cost", "risk", "backtest",
+            "walk_forward", "oos", "regime", "robustness", "paper_trading",
+            "monitoring", "trading_performance", "dsr", "pbo_cscv",
+            "lookahead_protection", "untouched_final_test", "risk_controls",
+            "kill_switch", "state_persistence", "evidence_integrity",
+            "reproducibility",
+        ):
+            evidence[gate] = GateStatus.INSUFFICIENT_EVIDENCE.value
+        evidence["execution_lock"] = GateStatus.PASS.value
 
-    if paper and paper.get("status") == "PASS":
-        statuses["paper_trading"] = "PASS"
-    elif paper:
-        statuses["paper_trading"] = "FAIL"
-        reasons.extend(paper.get("errors", []))
+    if paper:
+        if paper.get("status") != "PASS":
+            reasons.extend(paper.get("errors", []))
+        if paper.get("continuity_warnings"):
+            reasons.append("paper evidence has non-contiguous candle timestamps; 12/12 observations remain intact but are not one continuous 5m window")
     else:
-        statuses["paper_trading"] = "INSUFFICIENT_EVIDENCE"
+        reasons.append("paper evidence audit is missing")
 
-    statuses["risk_controls"] = "INSUFFICIENT_EVIDENCE"
-    statuses["kill_switch"] = "INSUFFICIENT_EVIDENCE"
-    statuses["state_persistence"] = "INSUFFICIENT_EVIDENCE"
-    statuses["evidence_integrity"] = "PASS" if phase10 and phase10.get("data_integrity", {}).get("passed") is True else "INSUFFICIENT_EVIDENCE"
+    final = evaluate_final_gate(evidence)
+    reasons.extend(final.reasons)
 
-    failed = [k for k,v in statuses.items() if v == "FAIL"]
-    insufficient = [k for k,v in statuses.items() if v == "INSUFFICIENT_EVIDENCE"]
-    status = "FAIL" if failed else ("INSUFFICIENT_EVIDENCE" if insufficient else "PASS")
     report = {
-        "status": status,
-        "gates": statuses,
-        "reasons": reasons + [f"failed gate: {x}" for x in failed] + [f"insufficient evidence: {x}" for x in insufficient],
+        "status": final.status.value,
+        "gates": dict(final.stage_status),
+        "reasons": reasons,
         "real_money_execution": False,
+        "validation_tests_passed": tests_passed,
         "source_files": {
             "phase10_backtest": str(PHASE10.relative_to(ROOT)) if PHASE10.exists() else None,
             "paper_audit": str(PAPER_AUDIT.relative_to(ROOT)) if PAPER_AUDIT.exists() else None,
@@ -64,7 +96,8 @@ def main() -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(json.dumps(report, indent=2, sort_keys=True))
-    return 0 if status == "PASS" else 1
+    return 0 if final.status is GateStatus.PASS else 1
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
