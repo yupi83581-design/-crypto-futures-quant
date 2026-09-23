@@ -100,3 +100,36 @@ def test_runtime_freshness_gate_accepts_recent_closed_data():
         interval_seconds=300,
         max_stale_intervals=2,
     )
+
+
+def test_snapshot_endpoint_rejects_order_like_mutations():
+    runtime = ProductionSnapshotRuntime(
+        RuntimeConfig(
+            lookback_candles=40,
+            host="127.0.0.1",
+            port=0,
+        )
+    )
+    server = runtime._server = __import__(
+        "src.production.snapshot_http",
+        fromlist=["create_snapshot_server"],
+    ).create_snapshot_server(
+        "127.0.0.1",
+        0,
+        runtime.state.get,
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address
+        request = urllib.request.Request(
+            f"http://{host}:{port}/snapshot",
+            method="POST",
+        )
+        with __import__("pytest").raises(urllib.error.HTTPError) as exc:
+            urllib.request.urlopen(request, timeout=5)
+        assert exc.value.code == 405
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
