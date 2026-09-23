@@ -88,14 +88,27 @@ jobs:
           git diff --cached --quiet || git commit -m "Record quantitative validation evidence"
           git push origin HEAD:agent/phase13-audit
       - name: Generate evidence-driven final validation report
+        continue-on-error: true
         env:
           PYTHONPATH: ${{ github.workspace }}
           VALIDATION_TESTS_PASSED: "1"
         run: python scripts/run_final_validation.py
       - name: Commit final validation report
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add evidence/final_validation.json evidence/paper_evidence_audit.json
           git diff --cached --quiet || git commit -m "Record final validation gate report"
           git push origin HEAD:agent/phase13-audit
+      - name: Enforce final validation status
+        if: always()
+        run: |
+          test -s evidence/final_validation.json
+          python - <<'PY'
+          import json
+          report = json.load(open("evidence/final_validation.json"))
+          print(json.dumps(report, indent=2))
+          if report.get("status") != "PASS":
+              raise SystemExit("FINAL_VALIDATION_STATUS=" + str(report.get("status")))
+          PY
