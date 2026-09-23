@@ -176,6 +176,12 @@ class ProductionSnapshotRuntime:
         if len(records) < 40:
             raise RuntimeError("real exchange returned insufficient closed candles")
 
+        _validate_freshness(
+            records,
+            now=self._clock().astimezone(timezone.utc),
+            interval_seconds=_timeframe_seconds(self.config.timeframe),
+        )
+
         split = int(len(records) * self.config.training_fraction)
         if split <= 0 or split >= len(records):
             raise RuntimeError("invalid temporal training/inference split")
@@ -321,3 +327,39 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def _validate_freshness(
+    records: Sequence[dict[str, Any]],
+    *,
+    now: datetime,
+    interval_seconds: int,
+    max_stale_intervals: int = 2,
+) -> None:
+    """Fail closed when the latest closed market observation is too old."""
+    if not records:
+        raise RuntimeError("freshness check received no market records")
+    if interval_seconds <= 0:
+        raise ValueError("interval_seconds must be positive")
+    if max_stale_intervals < 1:
+        raise ValueError("max_stale_intervals must be positive")
+
+    latest = records[-1]
+    event_time = datetime.fromisoformat(
+        str(latest["event_time"]).replace("Z", "+00:00")
+    ).astimezone(timezone.utc)
+    available_time = datetime.fromisoformat(
+        str(latest["available_time"]).replace("Z", "+00:00")
+    ).astimezone(timezone.utc)
+
+    if event_time > now:
+        raise RuntimeError("latest market event is in the future")
+    if available_time > now:
+        raise RuntimeError("latest market observation is not yet available")
+
+    age_seconds = (now - available_time).total_seconds()
+    if age_seconds > interval_seconds * max_stale_intervals:
+        raise RuntimeError(
+            f"market data is stale: age={age_seconds:.1f}s "
+            f"limit={interval_seconds * max_stale_intervals}s"
+        )
