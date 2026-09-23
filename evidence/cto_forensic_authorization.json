@@ -1,0 +1,24 @@
+{
+  "authorization": "DO_NOT_AUTHORIZE_REAL_MONEY",
+  "execution_verified": false,
+  "gates": {
+    "accounting_forensic": "COMPLETE",
+    "dsr_mathematical_audit": "FAIL",
+    "final_authorization": "FAIL",
+    "paper_evidence_forensic": "FAIL",
+    "pbo_cscv_mathematical_audit": "INSUFFICIENT_EVIDENCE",
+    "quantitative_validation": "FAIL",
+    "risk_failure_tests": "INSUFFICIENT_EVIDENCE",
+    "runtime_snapshot_audit": "INSUFFICIENT_EVIDENCE",
+    "security_execution_isolation": "PASS"
+  },
+  "generated_by": "CTO forensic authorization generator",
+  "real_money_execution": false,
+  "source_files": {
+    "final_validation": "evidence/final_validation.json",
+    "paper_audit": "evidence/paper_evidence_audit.json",
+    "phase10": "evidence/phase10_backtest.json",
+    "security_audit": "evidence/security_execution_audit.json"
+  },
+  "status": "BLOCKED"
+}

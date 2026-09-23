@@ -1,0 +1,16 @@
+{
+  "continuity_warnings": [
+    "candle gap is 218100s; expected 300s",
+    "candle gap is 0s; expected 300s",
+    "candle gap is 104400s; expected 300s"
+  ],
+  "continuous_5m_window": false,
+  "cycle_end": 12,
+  "cycle_start": 1,
+  "errors": [],
+  "first_candle_event_time": "2026-09-19T16:45:00.000Z",
+  "last_candle_event_time": "2026-09-23T11:00:00.000Z",
+  "status": "FAIL",
+  "total_events": 12,
+  "window_size": 12
+}

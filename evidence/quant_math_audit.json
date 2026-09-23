@@ -1,0 +1,39 @@
+{
+  "dsr": {
+    "deflated_sharpe_probability": 0.0,
+    "observed_sharpe": -0.31861705205297086,
+    "reason": "Current source evidence has non-positive observed Sharpe and zero DSR probability; no execution-readiness claim is supported.",
+    "status": "FAIL",
+    "trial_count": 7,
+    "trial_sharpe_variance_recorded": false,
+    "trial_universe": [
+      0.45,
+      0.475,
+      0.5,
+      0.525,
+      0.55,
+      0.575,
+      0.6
+    ]
+  },
+  "pbo_cscv": {
+    "block_count": 8,
+    "input_hash": "0e46f38a37ffd37e38eeb30c455e7a621352dd4bb823223ffd81448483bc6084",
+    "input_observations": 86280,
+    "interpretation": "PBO=0 is mechanically consistent with the stored CSCV output because all 70 paths have positive logit and zero overfit paths. The stored artifact does not contain the full strategy return matrix, so this audit cannot independently recompute every CSCV path.",
+    "logit_unique_count": 1,
+    "omega_all_positive_logit": true,
+    "omega_unique_count": 1,
+    "overfit_paths": 0,
+    "path_count": 70,
+    "pbo": 0.0,
+    "selected_strategy_indices_constant": true,
+    "selected_strategy_indices_unique": [
+      6
+    ],
+    "status": "INSUFFICIENT_EVIDENCE"
+  },
+  "real_money_execution": false,
+  "source_artifact": "evidence/phase10_backtest.json",
+  "source_dataset_sha256": "0e46f38a37ffd37e38eeb30c455e7a621352dd4bb823223ffd81448483bc6084"
+}

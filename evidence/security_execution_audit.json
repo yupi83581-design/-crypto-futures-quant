@@ -1,0 +1,8 @@
+{
+  "findings": [],
+  "limitation": "Static PASS does not prove runtime behavior; behavioral tests and runtime audit remain separate gates.",
+  "real_money_execution": false,
+  "scanned_files": 60,
+  "scope": "static execution-isolation audit",
+  "status": "PASS"
+}

@@ -1,0 +1,44 @@
+name: phase10-official-backtest
+
+on:
+  push:
+    branches:
+      - agent/phase13-audit
+    paths:
+      - "scripts/run_phase10_backtest.py"
+      - ".github/workflows/phase10-official-backtest.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  phase10:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run Phase 10
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python scripts/run_phase10_backtest.py \
+            --symbol BTCUSDT \
+            --start 2025-07-01T00:00:00Z \
+            --end 2026-09-23T00:00:00Z \
+            --output evidence/phase10_backtest.json
+      - name: Commit measured result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin agent/phase13-audit
+          git rebase origin/agent/phase13-audit
+          git add evidence/phase10_backtest.json
+          git diff --cached --quiet || git commit -m "Record Phase 10 official backtest result"
+          git push origin HEAD:agent/phase13-audit

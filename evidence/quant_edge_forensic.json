@@ -1,0 +1,62 @@
+{
+  "status": "FAIL",
+  "verdict": "CURRENT_RAW_EVIDENCE_DOES_NOT_DEMONSTRATE_POSITIVE_STRATEGY_EDGE",
+  "scope": "Phase 10 raw walk-forward and untouched final-test results before the separate overlap-accounting forensic audit",
+  "source_artifact": "evidence/phase10_backtest.json",
+  "source": "Binance Vision official USD-M Futures monthly klines",
+  "data_integrity": {
+    "passed": true,
+    "bars": 122976,
+    "duplicate_timestamps": 0,
+    "timestamp_gaps": 0,
+    "dataset_sha256": "0e46f38a37ffd37e38eeb30c455e7a621352dd4bb823223ffd81448483bc6084"
+  },
+  "walk_forward": {
+    "folds": 10,
+    "purge_bars": 3,
+    "embargo_bars": 3,
+    "lookahead_protection": true
+  },
+  "raw_wfo": {
+    "trade_count": 38469,
+    "win_rate": 0.2118848943304999,
+    "expectancy_per_trade": -0.0014004740123909774,
+    "net_return": -1.0,
+    "max_drawdown": 1.0,
+    "final_equity": 3.332987537377779e-19
+  },
+  "untouched_final_test": {
+    "start": "2026-08-24T00:00:00+00:00",
+    "bars": 2304,
+    "trade_count": 996,
+    "win_rate": 0.22590361445783133,
+    "expectancy_per_trade": -0.0013554769582219293,
+    "net_return": -0.7416565318453041,
+    "max_drawdown": 0.7416565318453041,
+    "final_equity": 25834.346815469584
+  },
+  "calibration": {
+    "brier_score": 0.24782965907033946
+  },
+  "dsr": {
+    "observed_sharpe": -0.31861705205297086,
+    "deflated_sharpe_probability": 0.0,
+    "trial_count": 7
+  },
+  "pbo_cscv": {
+    "pbo": 0.0,
+    "overfit_paths": 0,
+    "path_count": 70
+  },
+  "friction": {
+    "fee_assumption": 0.0005,
+    "slippage_assumption": 0.0002,
+    "funding": "not applicable to 15-minute fixed holding horizon"
+  },
+  "accounting_forensic": {
+    "status": "PENDING",
+    "purpose": "Quantify how much of the negative raw result is attributable to overlapping-trade accounting versus the underlying signal stream.",
+    "historical_artifact_preserved": true
+  },
+  "real_money_execution": false
+}
