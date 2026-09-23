@@ -62,14 +62,17 @@ jobs:
             --symbol BTCUSDT \
             --start 2025-07-01T00:00:00Z \
             --end 2026-09-23T00:00:00Z \
-            --output evidence/phase10_backtest.json
+            --output evidence/phase10_validation_refresh.json
 
       - name: Verify generated evidence is present
         run: |
+          test -s evidence/phase10_validation_refresh.json
           test -s evidence/phase10_backtest.json
           python - <<'PY'
           import json
-          p = json.load(open("evidence/phase10_backtest.json"))
+          historical = json.load(open("evidence/phase10_backtest.json"))
+          p = json.load(open("evidence/phase10_validation_refresh.json"))
+          assert historical.get("status") == "COMPLETE"
           assert p["source"].startswith("Binance Vision official")
           assert p["data_integrity"]["passed"] is True
           assert p["untouched_final_test"]["untouched"] is True
@@ -101,6 +104,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add evidence/phase10_backtest.json evidence/paper_evidence_audit.json evidence/final_validation.json
+          git add evidence/phase10_validation_refresh.json evidence/paper_evidence_audit.json evidence/final_validation.json
           git diff --cached --quiet || git commit -m "Record final validation evidence"
           git push origin HEAD:agent/phase13-audit
