@@ -27,3 +27,23 @@ def test_rejects_insufficient_sample():
 def test_deterministic():
     values=[0.01, -0.01, 0.02, 0.0, 0.005, -0.004]
     assert deflated_sharpe_ratio(values, trial_count=4) == deflated_sharpe_ratio(values, trial_count=4)
+
+
+def test_non_normality_statistics_are_exposed():
+    values = [-0.03, -0.01, 0.0, 0.01, 0.02, 0.08, 0.01, -0.005]
+    result = deflated_sharpe_ratio(values, trial_count=5)
+    assert math.isfinite(result.skewness)
+    assert math.isfinite(result.kurtosis)
+    assert result.kurtosis >= 1.0
+
+
+def test_requires_enough_observations_for_shape_statistics():
+    with pytest.raises(ValueError):
+        deflated_sharpe_ratio([0.1, -0.1], trial_count=2)
+    with pytest.raises(ValueError):
+        deflated_sharpe_ratio([0.1, -0.1, 0.05], trial_count=2)
+
+
+def test_explicit_trial_count_is_part_of_result():
+    result = deflated_sharpe_ratio([0.01, -0.01, 0.02, 0.0, 0.005], trial_count=11)
+    assert result.trial_count == 11
