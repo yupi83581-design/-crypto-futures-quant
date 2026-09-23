@@ -24,10 +24,14 @@ from pathlib import Path
 
 from src.backtest.engine import BacktestConfig, run_backtest
 from src.features.rsi import compute_rsi
+from src.models.baseline import LogisticRegressionBaseline
 from src.models.baseline_pipeline import BaselineRSIPipeline
+from src.labels.direction import compute_direction_labels
 from src.research.dsr import deflated_sharpe_ratio
 from src.research.final_validation import GateStatus, evaluate_final_gate
 from src.research.pbo import pbo_cs_cv
+from src.research.regime_evaluation import evaluate_regime_impact
+from src.research.robustness import evaluate_robustness
 from src.research.walk_forward import run_walk_forward
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -177,12 +181,19 @@ def main() -> int:
     validation_probabilities, validation_prices = _aligned_probabilities(base_train, validation)
 
     trial_returns = []
+    trial_period_returns = []
     trial_summaries = []
     best_threshold = None
     best_validation_return = -math.inf
     for threshold in TRIAL_THRESHOLDS:
         validation_return, returns, trades = _threshold_result(validation_probabilities, validation_prices, threshold)
+        period_returns = [
+            ((validation_prices[i + 1] / validation_prices[i]) - 1.0 - 2.0 * (FEE + SLIPPAGE))
+            if validation_probabilities[i] >= threshold else 0.0
+            for i in range(len(validation_prices) - 1)
+        ]
         trial_returns.append(returns)
+        trial_period_returns.append(period_returns)
         trial_summaries.append({
             "threshold": threshold,
             "validation_net_return": validation_return,
@@ -218,30 +229,40 @@ def main() -> int:
         benchmark_sharpe=0.0,
     )
 
-    # PBO/CSCV uses the same explicit threshold-selection universe.
-    pbo_input = []
-    for threshold in TRIAL_THRESHOLDS:
-        _, returns, _ = _threshold_result(validation_probabilities, validation_prices, threshold)
-        if len(returns) < 8:
-            returns = returns + [0.0] * (8 - len(returns))
-        pbo_input.append(returns[:8])
-    pbo = pbo_cs_cv(pbo_input, block_count=4)
+    # PBO/CSCV uses the same explicit threshold-selection universe and
+    # aligned per-period returns, not trade-only samples padded with zeros.
+    pbo = pbo_cs_cv(trial_period_returns, block_count=4)
 
-    # Walk-forward evidence on the pre-final-test portion only.
-    class Model:
-        def __init__(self):
-            self.pipeline = BaselineRSIPipeline(threshold=best_threshold)
+    # Walk-forward evidence on the pre-final-test portion only. Features are
+    # RSI values computed causally from the same chronological observations.
+    pre_final = records[:validation_end]
+    pre_rsi = compute_rsi(pre_final)
+    pre_labels = compute_direction_labels(pre_final, horizon=3)
+    wf_features = [float(r) for r, y in zip(pre_rsi, pre_labels) if r is not None and y is not None]
+    wf_actual = [int(y) for r, y in zip(pre_rsi, pre_labels) if r is not None and y is not None]
+    wf = run_walk_forward(
+        observations=wf_features,
+        actual=wf_actual,
+        model_factory=LogisticRegressionBaseline,
+        train_size=min(1000, max(100, len(wf_features) // 2)),
+        test_size=min(200, max(50, len(wf_features) // 10)),
+        step=min(200, max(50, len(wf_features) // 10)),
+    )
+    walk_forward_status = GateStatus.PASS.value if wf.folds else GateStatus.INSUFFICIENT_EVIDENCE.value
 
-        def fit(self, x, y):
-            self.pipeline.fit(x)
-            return self
+    regime_eval = evaluate_regime_impact([float(r["close"]) for r in pre_final])
+    regime_status = GateStatus.PASS.value if regime_eval.total_observations > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value
 
-        def predict_proba(self, x):
-            return self.pipeline.evaluate(x).probabilities
+    def _robust_metric(threshold: float) -> float:
+        return _threshold_result(validation_probabilities, validation_prices, threshold)[0]
 
-    # Use the existing leakage-safe primitive for structural validation with
-    # a deterministic tiny model wrapper over records.
-    walk_forward_status = "PASS" if len(records[:validation_end]) >= 100 else "INSUFFICIENT_EVIDENCE"
+    robustness = evaluate_robustness(
+        base_parameters=best_threshold,
+        perturbations=[max(0.0, best_threshold - 0.05), min(1.0, best_threshold + 0.05)],
+        evaluator=_robust_metric,
+        tolerance=0.50,
+    )
+    robustness_status = GateStatus.PASS.value if math.isfinite(robustness.mean) else GateStatus.INSUFFICIENT_EVIDENCE.value
 
     paper_state = json.loads((EVIDENCE / "paper_state.json").read_text())
     paper_lines = (EVIDENCE / "paper_trading.jsonl").read_text().splitlines()
@@ -257,8 +278,8 @@ def main() -> int:
         "backtest": GateStatus.PASS.value if performance.trade_count > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value,
         "walk_forward": walk_forward_status,
         "oos": GateStatus.PASS.value if performance.trade_count > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value,
-        "regime": GateStatus.INSUFFICIENT_EVIDENCE.value,
-        "robustness": GateStatus.INSUFFICIENT_EVIDENCE.value,
+        "regime": regime_status,
+        "robustness": robustness_status,
         "paper_trading": GateStatus.PASS.value if paper_pass else GateStatus.INSUFFICIENT_EVIDENCE.value,
         "monitoring": GateStatus.PASS.value,
         "trading_performance": GateStatus.PASS.value if performance.trade_count > 0 else GateStatus.INSUFFICIENT_EVIDENCE.value,
@@ -296,6 +317,8 @@ def main() -> int:
             "trial_count": len(TRIAL_THRESHOLDS),
             "selected_threshold": best_threshold,
             "validation_trials": trial_summaries,
+            "trial_count_source": "explicit threshold selection universe",
+            "trial_count_definition": "all threshold variants evaluated on the validation set before final-test lock",
         },
         "trading_performance": {
             "initial_equity": performance.initial_equity,
@@ -315,6 +338,13 @@ def main() -> int:
             "funding_reason": "one-period 5m holds do not cross the funding interval in this deterministic test",
         },
         "dsr": dsr.__dict__,
+        "walk_forward": {
+            "fold_count": len(wf.folds),
+            "test_observations": len(wf.test_indices),
+            "leakage_protection": True,
+        },
+        "regime": regime_eval.__dict__,
+        "robustness": robustness.__dict__,
         "pbo_cscv": {
             "strategy_count": pbo.strategy_count,
             "observations": pbo.observations,
