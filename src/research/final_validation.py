@@ -20,6 +20,7 @@ REQUIRED_STAGES = (
     "oos",
     "regime",
     "robustness",
+    "monte_carlo",
     "paper_trading",
     "monitoring",
     "trading_performance",
